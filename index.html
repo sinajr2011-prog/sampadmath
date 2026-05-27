@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>دستیار هوشمند ریاضی | خوارزمیکا</title>
+  
+  <!-- Fonts & Icons -->
+  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" type="text/css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <link rel="manifest" href="manifest.json">
+
+  <meta name="theme-color" content="#4f46e5">
+
+  <meta name="apple-mobile-web-app-capable" content="yes">
+
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <meta name="apple-mobile-web-app-title" content="خوارزمیکا">
+
+  <link rel="apple-touch-icon" href="IMA.png">
+  <style>
+    /* ========== BASE & RESET ========== */
+    :root {
+      --primary: #6366f1;
+      --primary-hover: #4f46e5;
+      --secondary: #8b5cf6;
+      --accent: #f59e0b;
+      --bg-light: #f8fafc;
+      --text-light: #0f172a;
+      --text-muted-light: #475569;
+      --bg-dark: #0f172a;
+      --text-dark: #f1f5f9;
+      --text-muted-dark: #94a3b8;
+      --card-bg-light: #ffffff;
+      --card-bg-dark: #1e293b;
+      --border-light: #e2e8f0;
+      --border-dark: #334155;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.4);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Vazirmatn', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg-light);
+      color: var(--text-light);
+      min-height: 100vh;
+      transition: background-color 0.4s ease, color 0.4s ease;
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    body.dark-mode {
+      background: var(--bg-dark);
+      color: var(--text-dark);
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ========== ANIMATIONS ========== */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.8s cubic-bezier(0.5, 0, 0, 1);
+    }
+    .reveal.active {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ========== HEADER ========== */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.8);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-light);
+      transition: all 0.4s ease;
+      padding: 1rem 0;
+    }
+
+    body.dark-mode header {
+      background: rgba(15, 23, 42, 0.85);
+      border-bottom-color: var(--border-dark);
+    }
+
+    .header-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo-title {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      text-decoration: none;
+    }
+
+    .logo-container {
+      position: relative;
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      color: white;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .title-section h1 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--text-light);
+      line-height: 1.2;
+    }
+    body.dark-mode .title-section h1 { color: var(--text-dark); }
+    
+    .subtitle {
+      font-size: 0.85rem;
+      color: var(--text-muted-light);
+      font-weight: 500;
+    }
+    body.dark-mode .subtitle { color: var(--text-muted-dark); }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn-icon, .btn-outline, .btn-solid {
+      border: none;
+      border-radius: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      text-decoration: none;
+      font-size: 0.95rem;
+    }
+
+    .btn-icon {
+      width: 42px;
+      height: 42px;
+      background: var(--card-bg-light);
+      color: var(--text-light);
+      border: 1px solid var(--border-light);
+    }
+    body.dark-mode .btn-icon {
+      background: var(--card-bg-dark);
+      color: var(--text-dark);
+      border-color: var(--border-dark);
+    }
+    .btn-icon:hover {
+      background: var(--border-light);
+      transform: translateY(-2px);
+    }
+    body.dark-mode .btn-icon:hover { background: var(--border-dark); }
+
+    .btn-outline {
+      padding: 10px 20px;
+      background: transparent;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+    }
+    .btn-outline:hover {
+      background: var(--primary);
+      color: white;
+      box-shadow: var(--shadow-glow);
+    }
+
+    .btn-solid {
+      padding: 10px 24px;
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      color: white;
+      box-shadow: var(--shadow-md);
+    }
+    .btn-solid:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-glow);
+    }
+
+    /* ========== HERO ========== */
+    .hero {
+      position: relative;
+      padding: 100px 0;
+      overflow: hidden;
+      background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.1), transparent 40%),
+                  radial-gradient(circle at bottom left, rgba(139, 92, 246, 0.1), transparent 40%);
+    }
+
+    .hero-content {
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+      position: relative;
+      z-index: 10;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      padding: 6px 16px;
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--primary);
+      border-radius: 50px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 24px;
+      border: 1px solid rgba(99, 102, 241, 0.2);
+    }
+
+    .hero h2 {
+      font-size: 3.5rem;
+      font-weight: 900;
+      margin-bottom: 24px;
+      background: linear-gradient(135deg, var(--text-light), var(--primary));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      line-height: 1.3;
+    }
+    body.dark-mode .hero h2 {
+      background: linear-gradient(135deg, #ffffff, #a5b4fc);
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 1.25rem;
+      color: var(--text-muted-light);
+      margin-bottom: 40px;
+    }
+    body.dark-mode .hero p { color: var(--text-muted-dark); }
+
+    /* ========== FEATURES ========== */
+    .section-padding { padding: 80px 0; }
+    
+    .section-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+    .section-header h3 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+    }
+    .section-header p {
+      color: var(--text-muted-light);
+      font-size: 1.1rem;
+    }
+    body.dark-mode .section-header p { color: var(--text-muted-dark); }
+
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 30px;
+    }
+
+    .card {
+      background: var(--card-bg-light);
+      border-radius: 24px;
+      padding: 40px 30px;
+      border: 1px solid var(--border-light);
+      box-shadow: var(--shadow-sm);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    body.dark-mode .card {
+      background: var(--card-bg-dark);
+      border-color: var(--border-dark);
+    }
+    
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--secondary));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.4s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-10px);
+      box-shadow: var(--shadow-lg);
+      border-color: rgba(99, 102, 241, 0.3);
+    }
+    .card:hover::before { transform: scaleX(1); }
+
+    .card-icon {
+      width: 70px;
+      height: 70px;
+      background: rgba(99, 102, 241, 0.1);
+      color: var(--primary);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      margin-bottom: 24px;
+      transition: transform 0.3s ease;
+    }
+    .card:hover .card-icon { transform: scale(1.1) rotate(-5deg); }
+
+    .card h4 {
+      font-size: 1.3rem;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+    .card p {
+      color: var(--text-muted-light);
+      font-size: 0.95rem;
+      line-height: 1.8;
+    }
+    body.dark-mode .card p { color: var(--text-muted-dark); }
+
+    /* ========== TOOLS ========== */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 40px;
+    }
+
+    .tool-box {
+      background: var(--card-bg-light);
+      border-radius: 30px;
+      padding: 40px;
+      border: 1px solid var(--border-light);
+      box-shadow: var(--shadow-md);
+    }
+    body.dark-mode .tool-box {
+      background: var(--card-bg-dark);
+      border-color: var(--border-dark);
+    }
+
+    .display-box {
+      background: var(--bg-light);
+      border-radius: 16px;
+      padding: 20px;
+      margin: 24px 0;
+      border: 1px dashed var(--primary);
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: bold;
+      color: var(--primary);
+    }
+    body.dark-mode .display-box {
+      background: var(--bg-dark);
+      border-color: var(--border-dark);
+    }
+
+    /* ========== BANNER ========== */
+    .cta-banner {
+      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      border-radius: 32px;
+      padding: 70px 40px;
+      text-align: center;
+      color: white;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-glow);
+      margin: 60px 0;
+    }
+
+    .cta-banner h3 { font-size: 2.5rem; margin-bottom: 20px; font-weight: 800; }
+    .cta-banner p { font-size: 1.2rem; max-width: 600px; margin: 0 auto 32px; opacity: 0.9; }
+    
+    .btn-white {
+      background: white;
+      color: var(--primary);
+      padding: 14px 32px;
+      border-radius: 50px;
+      font-weight: 800;
+      font-size: 1.1rem;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.3s ease;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    .btn-white:hover {
+      transform: translateY(-3px) scale(1.02);
+      box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+    }
+
+    /* ========== FOOTER ========== */
+    footer {
+      background: var(--card-bg-light);
+      border-top: 1px solid var(--border-light);
+      padding: 80px 0 40px;
+      margin-top: 60px;
+    }
+    body.dark-mode footer {
+      background: var(--card-bg-dark);
+      border-color: var(--border-dark);
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 60px;
+    }
+
+    .footer-brand p {
+      color: var(--text-muted-light);
+      margin: 20px 0;
+      max-width: 300px;
+    }
+    body.dark-mode .footer-brand p { color: var(--text-muted-dark); }
+
+    .social-links { display: flex; gap: 12px; }
+    .social-links a {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: var(--bg-light);
+      color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      text-decoration: none;
+      transition: all 0.3s ease;
+    }
+    body.dark-mode .social-links a { background: var(--bg-dark); }
+    .social-links a:hover {
+      background: var(--primary); color: white;
+      transform: translateY(-3px);
+    }
+
+    .footer-links h4 {
+      font-size: 1.1rem;
+      margin-bottom: 24px;
+      font-weight: 700;
+    }
+    .footer-links ul { list-style: none; }
+    .footer-links li { margin-bottom: 12px; }
+    .footer-links a {
+      color: var(--text-muted-light);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+    body.dark-mode .footer-links a { color: var(--text-muted-dark); }
+    .footer-links a:hover { color: var(--primary); }
+
+    .footer-bottom {
+      text-align: center;
+      padding-top: 30px;
+      border-top: 1px solid var(--border-light);
+      color: var(--text-muted-light);
+      font-size: 0.9rem;
+    }
+    body.dark-mode .footer-bottom { border-color: var(--border-dark); color: var(--text-muted-dark); }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 992px) {
+      .hero h2 { font-size: 2.8rem; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 768px) {
+      .header-actions .btn-outline { display: none; }
+      .hero { padding: 60px 0; }
+      .hero h2 { font-size: 2.2rem; }
+      .grid-2 { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr; text-align: center; }
+      .social-links { justify-content: center; }
+      .footer-brand p { margin: 20px auto; }
+    }
+    /* ========== WIDGET CHAT ========== */
+.chat-widget-btn {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    width: 60px;
+    height: 60px;
+    border-radius: 30px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    box-shadow: var(--shadow-lg);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 28px;
+    z-index: 1001;
+    transition: all 0.3s ease;
+}
+.chat-widget-btn:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-glow);
+}
+.chat-widget-panel {
+    position: fixed;
+    bottom: 100px;
+    left: 24px;
+    width: 360px;
+    height: 500px;
+    background: var(--card-bg-light);
+    border-radius: 24px;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border-light);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 1000;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: scale(0);
+    opacity: 0;
+    transform-origin: bottom left;
+    pointer-events: none;
+}
+body.dark-mode .chat-widget-panel {
+    background: var(--card-bg-dark);
+    border-color: var(--border-dark);
+}
+.chat-widget-panel.open {
+    transform: scale(1);
+    opacity: 1;
+    pointer-events: auto;
+}
+.chat-header {
+    padding: 16px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+}
+.chat-header h4 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+.chat-header button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+}
+.chat-messages {
+    flex: 1;
+    padding: 12px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.message {
+    max-width: 85%;
+    padding: 8px 12px;
+    border-radius: 18px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    word-wrap: break-word;
+}
+.user-message {
+    align-self: flex-end;
+    background: var(--primary);
+    color: white;
+    border-bottom-right-radius: 4px;
+}
+.bot-message {
+    align-self: flex-start;
+    background: var(--bg-light);
+    color: var(--text-light);
+    border-bottom-left-radius: 4px;
+}
+body.dark-mode .bot-message {
+    background: var(--bg-dark);
+    color: var(--text-dark);
+}
+.chat-input-area {
+    padding: 12px;
+    border-top: 1px solid var(--border-light);
+    display: flex;
+    gap: 8px;
+    background: inherit;
+}
+.chat-input-area input {
+    flex: 1;
+    padding: 10px;
+    border-radius: 24px;
+    border: 1px solid var(--border-light);
+    background: var(--bg-light);
+    color: var(--text-light);
+    font-family: inherit;
+}
+body.dark-mode .chat-input-area input {
+    background: var(--bg-dark);
+    color: var(--text-dark);
+    border-color: var(--border-dark);
+}
+.chat-input-area button {
+    background: var(--primary);
+    border: none;
+    border-radius: 24px;
+    padding: 0 16px;
+    color: white;
+    cursor: pointer;
+    transition: 0.2s;
+}
+.chat-input-area button:hover {
+    background: var(--primary-hover);
+}
+.typing {
+    font-style: italic;
+    color: var(--text-muted-light);
+    font-size: 0.85rem;
+    padding: 4px 12px;
+}
+@media (max-width: 480px) {
+    .chat-widget-panel {
+        width: calc(100% - 48px);
+        left: 24px;
+        right: 24px;
+        bottom: 90px;
+    }
+}
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="container header-inner">
+      <a href="#" class="logo-title" aria-label="صفحه اصلی خوارزمیکا">
+        <div class="logo-container">
+          <i class="fa-solid fa-square-root-variable"></i>
+        </div>
+        <div class="title-section">
+          <h1>خــوارزمـیــکـا</h1>
+          <div class="subtitle">دستیار هوشمند ریاضی</div>
+        </div>
+      </a>
+      
+      <div class="header-actions">
+        <button class="btn-icon" id="darkModeBtn" aria-label="تغییر تم">
+          <i class="fas fa-moon"></i>
+        </button>
+        <a href="auth.php" class="btn-outline">دموی تعاملی</a>
+        <a href="auth.php" class="btn-solid"><i class="fas fa-user"></i> ورود</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO SECTION -->
+    <section class="hero">
+      <div class="container">
+        <div class="hero-content reveal">
+          <div class="hero-badge">ویژه متوسطه اول (هفتم تا نهم)</div>
+          <h2>ریاضی را عمیق، جذاب و<br>هوشمندانه بیاموز</h2>
+          <p>با هوش مصنوعی ایما، مفاهیم پیچیده را به سادگی درک کنید. حل گام‌به‌گام مسائل و معادلات پیشرفته در کمتر از چند ثانیه.</p>
+          <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+            <a href="auth.php" class="btn-solid" style="padding: 14px 32px; font-size: 1.1rem;"><i class="fas fa-rocket"></i> شروع یادگیری رایگان</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FEATURES SECTION -->
+    <section class="section-padding container">
+      <div class="section-header reveal">
+        <h3><span style="color: var(--primary);">هوش مصنوعی</span> در خدمت آموزش</h3>
+        <p>مجموعه‌ای کامل از ابزارها برای تسلط بر ریاضیات مدرسه</p>
+      </div>
+      
+      <div class="grid-4">
+        <div class="card reveal" style="transition-delay: 0.1s;">
+          <div class="card-icon"><i class="fas fa-robot"></i></div>
+          <h4>معلم خصوصی آنلاین</h4>
+          <p>تحلیل دقیق اشکالات شما و ارائه راه‌حل تشریحی برای مباحثی چون حد و پیوستگی در هر ساعت از شبانه‌روز.</p>
+        </div>
+        
+        <div class="card reveal" style="transition-delay: 0.2s;">
+          <div class="card-icon" style="color: #10b981; background: rgba(16, 185, 129, 0.1);"><i class="fas fa-shapes"></i></div>
+          <h4>شبیه‌ساز هندسه</h4>
+          <p>ترسیم و محاسبه خودکار روابط فیثاغورس و احجام هندسی به صورت کاملاً پویا و تعاملی.</p>
+        </div>
+        
+        <div class="card reveal" style="transition-delay: 0.3s;">
+          <div class="card-icon" style="color: #f59e0b; background: rgba(245, 158, 11, 0.1);"><i class="fas fa-chart-pie"></i></div>
+          <h4>آزمون‌های هوشمند</h4>
+          <p>سیستم سنجش تطبیقی که سطح سوالات را بر اساس پیشرفت شما تنظیم می‌کند تا همیشه در چالش باشید.</p>
+        </div>
+        
+        <div class="card reveal" style="transition-delay: 0.4s;">
+          <div class="card-icon" style="color: #ec4899; background: rgba(236, 72, 153, 0.1);"><i class="fas fa-wave-square"></i></div>
+          <h4>رسم نمودار پیشرفته</h4>
+          <p>تصویرسازی زنده مفاهیم جبری و رسم دقیق توابع گوناگون برای درک بهتر و عمیق‌تر مباحث.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- TOOLS PREVIEW -->
+    <section class="section-padding container bg-light">
+      <div class="grid-2">
+        <div class="tool-box reveal">
+          <h3 style="font-size: 1.8rem; margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+            <i class="fas fa-calculator" style="color: var(--primary);"></i> حل‌المسائل خودکار
+          </h3>
+          <p style="color: var(--text-muted-light);">دستگاه معادلات یا معادلات درجه دوم را وارد کنید و جواب را مرحله به مرحله ببینید.</p>
+          
+          <div class="display-box">
+            نمایش گام‌به‌گام راه‌حل‌ها
+          </div>
+          <button class="btn-outline" style="width: 100%;">امتحان کنید</button>
+        </div>
+
+        <div class="tool-box reveal" style="transition-delay: 0.2s;">
+          <h3 style="font-size: 1.8rem; margin-bottom: 16px; display: flex; align-items: center; gap: 12px;">
+            <i class="fas fa-layer-group" style="color: var(--accent);"></i> کاوشگر الگوها
+          </h3>
+          <p style="color: var(--text-muted-light);">بسط دوجمله‌ای و مثلث خیام-پاسکال را با شبیه‌ساز ما به راحتی کشف کنید.</p>
+          
+          <div class="display-box" style="color: var(--accent); border-color: var(--accent);">
+            بررسی و تحلیل الگوهای جبری
+          </div>
+          <button class="btn-outline" style="width: 100%; border-color: var(--accent); color: var(--accent);">مشاهده مثلث خیام</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA BANNER -->
+    <section class="container">
+      <div class="cta-banner reveal">
+        <h3>نمره ۲۰ در دستان شماست!</h3>
+        <p>همین حالا به جمع هزاران دانش‌آموز موفق بپیوندید و یادگیری لذت‌بخش ریاضیات را با خوارزمیکا تجربه کنید.</p>
+        <a href="auth.php" class="btn-white"><i class="fas fa-user-plus"></i> ثبت‌نام و شروع رایگان</a>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="logo-title" style="margin-bottom: 16px;">
+            <div class="logo-container" style="width: 40px; height: 40px; font-size: 1.2rem;">
+              <i class="fa-solid fa-square-root-variable"></i>
+            </div>
+            <h3 style="font-weight: 800; font-size: 1.4rem; color: var(--text-light);" class="footer-title">خوارزمــیکا</h3>
+          </div>
+          <p>پلتفرم هوشمند آموزش ریاضیات با بهره‌گیری از جدیدترین الگوریتم‌های هوش مصنوعی برای مقطع متوسطه اول.</p>
+          <div class="social-links">
+            <a href="#" aria-label="اینستاگرام"><i class="fab fa-instagram"></i></a>
+            <a href="#" aria-label="تلگرام"><i class="fab fa-telegram-plane"></i></a>
+            <a href="#" aria-label="لینکدین"><i class="fab fa-linkedin-in"></i></a>
+          </div>
+        </div>
+        
+        <div class="footer-links">
+          <h4>ابزارها</h4>
+          <ul>
+            <li><a href="auth.php">حل‌کننده معادلات</a></li>
+            <li><a href="auth.php">رسم نمودار توابع</a></li>
+            <li><a href="auth.php">ماشین‌حساب مهندسی</a></li>
+            <li><a href="auth.php">شبیه‌ساز هندسه</a></li>
+          </ul>
+        </div>
+        
+        <div class="footer-links">
+          <h4>محتوای آموزشی</h4>
+          <ul>
+            <li><a href="auth.php">پایه هفتم</a></li>
+            <li><a href="auth.php">پایه هشتم</a></li>
+            <li><a href="auth.php">پایه نهم</a></li>
+            <li><a href="auth.php">بانک سوالات امتحانی</a></li>
+          </ul>
+        </div>
+        
+        <div class="footer-links">
+          <h4>راهنما و پشتیبانی</h4>
+          <ul>
+            <li><a href="auth.php">سوالات متداول</a></li>
+            <li><a href="auth.php">تماس با ما</a></li>
+            <li><a href="auth.php">قوانین و مقررات</a></li>
+            <li><a href="auth.php">حریم خصوصی</a></li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="footer-bottom">
+        <p>© ۱۴۰۵ - تمامی حقوق برای پلتفرم دستیار هوشمند ریاضی خوارزمیکا محفوظ است.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- SCRIPTS -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // Dark Mode Logic
+      const darkModeBtn = document.getElementById('darkModeBtn');
+      const body = document.body;
+      const footerTitle = document.querySelector('.footer-title');
+      
+      const setDarkMode = (isDark) => {
+        if (isDark) {
+          body.classList.add('dark-mode');
+          darkModeBtn.innerHTML = '<i class="fas fa-sun"></i>';
+          if(footerTitle) footerTitle.style.color = 'var(--text-dark)';
+          localStorage.setItem('ima_theme', 'dark');
+        } else {
+          body.classList.remove('dark-mode');
+          darkModeBtn.innerHTML = '<i class="fas fa-moon"></i>';
+          if(footerTitle) footerTitle.style.color = 'var(--text-light)';
+          localStorage.setItem('ima_theme', 'light');
+        }
+      };
+      // ویجت چت پشتیبانی
+const widgetBtn = document.getElementById('chatWidgetBtn');
+const widgetPanel = document.getElementById('chatWidgetPanel');
+const closeBtn = document.getElementById('closeChatBtn');
+const chatMessages = document.getElementById('chatMessages');
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendChatBtn');
+
+let isOpen = false;
+
+widgetBtn.addEventListener('click', () => {
+    isOpen = !isOpen;
+    if (isOpen) {
+        widgetPanel.classList.add('open');
+    } else {
+        widgetPanel.classList.remove('open');
+    }
+});
+closeBtn.addEventListener('click', () => {
+    isOpen = false;
+    widgetPanel.classList.remove('open');
+});
+
+function addMessage(content, isUser) {
+    const div = document.createElement('div');
+    div.className = `message ${isUser ? 'user-message' : 'bot-message'}`;
+    div.textContent = content;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function showTyping() {
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'typing';
+    typingDiv.id = 'typingIndicator';
+    typingDiv.textContent = 'خوارزمیکا در حال تایپ...';
+    chatMessages.appendChild(typingDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+function hideTyping() {
+    const typing = document.getElementById('typingIndicator');
+    if (typing) typing.remove();
+}
+
+async function sendMessage() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    addMessage(text, true);
+    chatInput.value = '';
+    showTyping();
+
+    try {
+        const response = await fetch('http://localhost:8000/api/support/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                messages: [
+                    { role: 'user', content: text }
+                ],
+                temperature: 0.5,
+                max_tokens: 800
+            })
+        });
+        if (!response.ok) throw new Error('خطا در ارتباط با سرور');
+        const data = await response.json();
+        const reply = data.choices[0].message.content;
+        hideTyping();
+        addMessage(reply, false);
+    } catch (error) {
+        hideTyping();
+        addMessage('متأسفانه خطایی رخ داد. لطفاً دوباره تلاش کنید.', false);
+        console.error(error);
+    }
+}
+
+sendBtn.addEventListener('click', sendMessage);
+chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendMessage();
+});
+      // Initialize theme
+      const savedTheme = localStorage.getItem('ima_theme');
+      if (savedTheme === 'dark') {
+        setDarkMode(true);
+      }
+
+      // Toggle Event
+      darkModeBtn.addEventListener('click', () => {
+        const isDark = body.classList.contains('dark-mode');
+        setDarkMode(!isDark);
+      });
+
+      // Scroll Reveal Animation (Intersection Observer)
+      const revealElements = document.querySelectorAll('.reveal');
+      
+      const revealObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('active');
+            observer.unobserve(entry.target); // Run once
+          }
+        });
+      }, {
+        root: null,
+        threshold: 0.15,
+        rootMargin: "0px 0px -50px 0px"
+      });
+
+      revealElements.forEach(el => revealObserver.observe(el));
+    });
+  </script>
+  <!-- ویجت چت پشتیبانی -->
+<button class="chat-widget-btn" id="chatWidgetBtn">
+    <i class="fa-solid fa-headset"></i>
+</button>
+<div class="chat-widget-panel" id="chatWidgetPanel">
+    <div class="chat-header">
+        <h4><i class="fa-regular fa-message"></i> پشتیبانی خوارزمیکا</h4>
+        <button id="closeChatBtn"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="chat-messages" id="chatMessages">
+        <div class="message bot-message">سلام! من خوارزمیکا هستم، دستیار هوشمند ریاضی و پشتیبانی. چطور می‌توانم کمکتان کنم؟</div>
+    </div>
+    <div class="chat-input-area">
+        <input type="text" id="chatInput" placeholder="سوال خود را بپرسید..." dir="rtl">
+        <button id="sendChatBtn"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+</div>
+<script>
+
+if ('serviceWorker' in navigator) {
+
+  window.addEventListener('load', async () => {
+
+    try {
+
+      const registration = await navigator.serviceWorker.register('./sw.js');
+
+      console.log('SW Registered', registration);
+
+    } catch (err) {
+
+      console.log('SW Error', err);
+
+    }
+
+  });
+
+}
+</script>
+<script>
+
+let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+
+  e.preventDefault();
+
+  deferredPrompt = e;
+
+  showInstallButton();
+
+});
+
+function showInstallButton() {
+
+  if (document.getElementById('installBtn')) return;
+
+  const btn = document.createElement('button');
+
+  btn.id = 'installBtn';
+
+  btn.innerHTML = '📲 نصب برنامه';
+
+  btn.style.position = 'fixed';
+
+  btn.style.bottom = '24px';
+
+  btn.style.right = '24px';
+
+  btn.style.left = 'unset';
+
+  btn.style.zIndex = '9999';
+
+  btn.style.display = 'flex';
+
+  btn.style.alignItems = 'center';
+
+  btn.style.gap = '10px';
+
+  btn.style.padding = '14px 18px';
+
+  btn.style.border = 'none';
+
+  btn.style.borderRadius = '18px';
+
+  btn.style.background =
+  'linear-gradient(135deg,#6366f1,#8b5cf6)';
+
+  btn.style.color = 'white';
+
+  btn.style.fontSize = '15px';
+
+  btn.style.fontWeight = '700';
+
+  btn.style.cursor = 'pointer';
+
+  btn.style.boxShadow =
+  '0 10px 30px rgba(99,102,241,0.35)';
+
+  btn.style.backdropFilter = 'blur(10px)';
+
+  btn.style.transition = 'all 0.3s ease';
+
+  document.body.appendChild(btn);
+
+  btn.addEventListener('click', async () => {
+
+    if (!deferredPrompt) return;
+
+    deferredPrompt.prompt();
+
+    const { outcome } = await deferredPrompt.userChoice;
+
+    console.log(outcome);
+
+    deferredPrompt = null;
+
+    btn.remove();
+
+  });
+
+}
+
+</script>
+<script>
+
+function isIos() {
+
+  return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+
+}
+
+function isInStandaloneMode() {
+
+  return ('standalone' in window.navigator) && window.navigator.standalone;
+
+}
+
+if (isIos() && !isInStandaloneMode()) {
+
+  const iosBanner = document.createElement('div');
+
+  iosBanner.innerHTML = `
+
+    <div style="
+      position:fixed;
+      bottom:20px;
+      right:20px;
+      left:20px;
+      background:#111827;
+      color:white;
+      padding:16px;
+      border-radius:16px;
+      z-index:9999;
+      text-align:center;
+      line-height:1.8;
+      box-shadow:0 10px 30px rgba(0,0,0,0.3);
+    ">
+
+      برای نصب برنامه در آیفون:
+
+      <br><br>
+
+      Safari → Share → Add to Home Screen
+
+    </div>
+
+  `;
+
+  document.body.appendChild(iosBanner);
+
+}
+
+</script>
+</body>
+</html>
