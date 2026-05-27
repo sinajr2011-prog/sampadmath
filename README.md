@@ -1,3 +1,8 @@
+[![SampadMath GitHub Stars](https://img.shields.io/github/stars/sinajr2011-prog/sampadmath?style=social)](https://github.com/sinajr2011-prog/sampadmath/stargazers)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) 
+[![PWA Ready](https://img.shields.io/badge/PWA-Ready-blue)](https://web.dev/progressive-web-apps/)
+
+
 # 📚✨ SampadMath
 
 > **An Intelligent Mathematical Learning & Computing Platform for Students**  
