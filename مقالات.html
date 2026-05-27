@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>مقالات و آموزش‌ها | خوارزمیکا</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
+ <link rel="stylesheet" href="C.css">
+</head>
+<body class="bg-blobs">
+  <header>
+    <h1>📚 مقالات و آموزش‌های ریاضی</h1>
+    <p>مرتب، طبقه‌بندی‌شده و کاملاً ریسپانسیو برای پایه‌های هفتم، هشتم و نهم (مقاله/جزوه/نمونه‌سوال + ویدئو).</p>
+  </header>
+
+  <main class="wrap">
+    <div class="topbar">
+      <a class="chip" href="خوارزمی.html" title="بازگشت به پنل">
+        <i class="fa-solid fa-rotate-left"></i>
+        <span>بازگشت</span>
+      </a>
+
+      <div class="search">
+        <input id="searchInput" type="text" placeholder="جستجو: مثال «نوبت دوم»، «فصل»، «کتاب»، «ویدئو»..." autocomplete="off" />
+        <i class="fa-solid fa-magnifying-glass"></i>
+      </div>
+
+      <div class="filters" aria-label="پایه‌ها">
+        <button class="chip active" type="button" data-grade="7"><i class="fa-solid fa-graduation-cap"></i> هفتم</button>
+        <button class="chip" type="button" data-grade="8"><i class="fa-solid fa-graduation-cap"></i> هشتم</button>
+        <button class="chip" type="button" data-grade="9"><i class="fa-solid fa-graduation-cap"></i> نهم</button>
+      </div>
+    </div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <div class="title" id="panelTitle">
+          <i class="fa-solid fa-layer-group"></i>
+          <span>پایه هفتم</span>
+        </div>
+
+        <div class="filters" aria-label="فیلتر نوع محتوا">
+          <button class="chip active" type="button" data-type="all"><i class="fa-solid fa-border-all"></i> همه</button>
+          <button class="chip" type="button" data-type="video"><i class="fa-solid fa-circle-play"></i> ویدئو</button>
+          <button class="chip" type="button" data-type="article"><i class="fa-solid fa-file-lines"></i> مقاله/جزوه/سوال</button>
+        </div>
+      </div>
+
+      <div class="muted" id="panelHint">برای هر پایه: ۱۰ لینک مقاله/جزوه (شامل نمونه‌سوال و کتاب) + چند لینک ویدئویی منتخب.</div>
+      <div class="grid" id="cards"></div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-grid">
+      <div class="footer-section">
+        <h3>درباره پلتفرم</h3>
+        <p>صفحه تخصصی مقالات سکوی جامع خوارزمیکا، آینه‌ای است از تجارب، آموخته‌ها و دانش دیگر علاقه‌مندان و دوستداران مباحث ریاضی و دریچه‌ای است به روشنایی فردای ما برای کسب هر آنچه که با آن نیازمندیم...</p>
+        <div class="developer-credit">✨Developed by <strong>S.J &amp; K.SH</strong> ✨</div>
+        <div style="color: var(--warning); font-weight: 900; margin-top: 5px;">❤️Thanks by B.B❤️</div>
+      </div>
+
+      <div class="footer-section">
+        <h3>تماس با ما</h3>
+        <p><i class="fas fa-envelope"></i> ایمیل: sinajunior2011@gmail.com</p>
+      </div>
+    </div>
+
+    <div class="copyright">
+      <p>© 1404 کلیه حقوق برای S.J &amp; K.SH محفوظ است. این پروژه آموزشی و غیرانتفاعی می‌باشد.</p>
+      <p>نسخه 1.2 - آخرین به‌روزرسانی: بهمن 1404</p>
+    </div>
+  </footer>
+
+  <script>
+    const resources = {
+      7: [
+        { type: 'article', kind: 'book', title: 'کتاب درسی ریاضی هفتم (PDF) - دفتر انتشارات', url: 'https://chap.sch.ir/books/3889', source: 'chap.sch.ir', tags: ['PDF'] },
+        { type: 'article', kind: 'book', title: 'ریاضی هفتم 1402 (دانلود کتاب کامل)', url: 'https://first.qomgt.ir/index.php/mathematics/3223-1402', source: 'qomgt.ir', tags: ['PDF'] },
+        { type: 'article', kind: 'exam', title: 'نمونه سوال ریاضی هفتم | نوبت اول', url: 'https://mihanmaktab.com/riazi7t1/', source: 'میهن مکتب', tags: ['نوبت اول', 'با پاسخ'] },
+        { type: 'article', kind: 'exam', title: 'نمونه سوال ریاضی هفتم | نوبت دوم', url: 'https://mihanmaktab.com/riazi7t2/', source: 'میهن مکتب', tags: ['نوبت دوم', 'با پاسخ'] },
+        { type: 'article', kind: 'exam', title: 'سوال امتحانی ریاضی هفتم | میان‌ترم نوبت دوم', url: 'https://mihanmaktab.com/%D8%B3%D9%88%D8%A7%D9%84-%D8%A7%D9%85%D8%AA%D8%AD%D8%A7%D9%86%DB%8C-%D8%B1%DB%8C%D8%A7%D8%B6%DB%8C-%D9%87%D9%81%D8%AA%D9%85-%D9%85%DB%8C%D8%A7%D9%86-%D8%AA%D8%B1%D9%85-%D9%86%D9%88%D8%A8%D8%AA/', source: 'میهن مکتب', tags: ['میان‌ترم', 'Word/PDF'] },
+        { type: 'article', kind: 'exam', title: 'نمونه سوالات امتحانی ریاضی هفتم - هندسه و استدلال (PDF)', url: 'https://ketabesabz.com/book/35468/%D8%AF%D8%A7%D9%86%D9%84%D9%88%D8%AF-%D9%86%D9%85%D9%88%D9%86%D9%87-%D8%B3%D9%88%D8%A7%D9%84%D8%A7%D8%AA-%D8%A7%D9%85%D8%AA%D8%AD%D8%A7%D9%86%DB%8C-%D8%B1%DB%8C%D8%A7%D8%B6%DB%8C-%D9%87%D9%81%D8%AA%D9%85-%D9%87%D9%86%D8%AF%D8%B3%D9%87-%D9%88-%D8%A7%D8%B3%D8%AA%D8%AF%D9%84%D8%A7%D9%84', source: 'کتاب سبز', tags: ['PDF'] },
+        { type: 'article', kind: 'exam', title: 'نمونه سوال ریاضی هفتم فصل اول با جواب (PDF)', url: 'https://kdarsi.ir/12293/%D9%86%D9%85%D9%88%D9%86%D9%87-%D8%B3%D9%88%D8%A7%D9%84-%D8%B1%DB%8C%D8%A7%D8%B6%DB%8C-%D9%87%D9%81%D8%AA%D9%85-%D9%81%D8%B5%D9%84-%D8%A7%D9%88%D9%84-%D8%A8%D8%A7-%D8%AC%D9%88%D8%A7%D8%A8-pdf/', source: 'کمک درسی', tags: ['فصل 1', 'با جواب'] },
+        { type: 'article', kind: 'article', title: 'حل تمرینات کتاب‌کار فصل 7 (قسمت 1) - ریاضی هفتم', url: 'https://bavs.ir/fasl7kk1/', source: 'bavs.ir', tags: ['تمرین', 'حل'] },
+        { type: 'article', kind: 'exam', title: 'نمونه سوالات ریاضی هفتم با جواب (فصل به فصل)', url: 'https://blog.filimo.school/nemoone/nemoone-math/nemoone-math-7th/', source: 'فیلیمومدرسه', tags: ['فصل به فصل', 'PDF'] },
+
+        { type: 'video', title: 'فیلم و جزوه فصل 9 ریاضی هفتم (آمار و احتمال)', url: 'https://amoozeshmelli.com/%D9%81%DB%8C%D9%84%D9%85-%D9%88-%D8%AC%D8%B2%D9%88%D9%87-%D8%B7%D9%88%D9%84-%D8%B3%D8%A7%D9%84-%D8%B1%DB%8C%D8%A7%D8%B6%DB%8C-%D9%81%D8%B5%D9%84-9-%D9%BE%D8%A7%DB%8C%D9%87-%D9%87%D9%81%D8%AA%D9%85/', source: 'amoozeshmelli.com', tags: ['پلی‌لیست', 'جزوه'] },
+        { type: 'video', title: 'راهنمای جامع ریاضی هفتم (فصل به فصل + ویدئو)', url: 'https://taha.school/7th-grade-math-comprehensive-guide/', source: 'taha.school', tags: ['فصل به فصل'] },
+        { type: 'video', title: 'لیست مباحث ریاضی هفتم (آموزش + ویدئو)', url: 'https://behroshd.com/%D9%84%DB%8C%D8%B3%D8%AA-%D9%85%D8%A8%D8%A7%D8%AD%D8%AB-%D8%B1%DB%8C%D8%A7%D8%B6%DB%8C-%D9%87%D9%81%D8%AA%D9%85/', source: 'behroshd.com', tags: ['فصل‌ها'] },
+        { type: 'video', title: 'درس‌ها و فصل‌ها (هفتم/هشتم/نهم) - Math Game', url: 'https://mathgames.ir/lessons/', source: 'mathgames.ir', tags: ['فصل‌ها', 'تمرین'] }
+      ],
+
+      8: [
+        { type: 'article', kind: 'book', title: 'کتاب درسی ریاضی هشتم (PDF) - دفتر انتشارات', url: 'https://chap.sch.ir/books/3904', source: 'chap.sch.ir', tags: ['PDF'] },
+        { type: 'article', kind: 'exam', title: 'نمونه سوال ریاضی هشتم | نوبت اول', url: 'https://mihanmaktab.com/riazi8t1/', source: 'میهن مکتب', tags: ['نوبت اول', 'با پاسخ'] },
+        { type: 'article', kind: 'exam', title: 'نمونه سوال ریاضی هشتم | نوبت دوم', url: 'https://mihanmaktab.com/riazi8t2/', source: 'میهن مکتب', tags: ['نوبت دوم', 'با پاسخ'] },
+        { type: 'article', kind: 'exam', title: 'سوالات امتحانی ریاضی هشتم فصل به فصل', url: 'https://mihanmaktab.com/%D8%B3%D9%88%D8%A7%D9%84%D8%A7%D8%AA-%D8%A7%D9%85%D8%AA%D8%AD%D8%A7%D9%86%DB%8C-%D8%B1%DB%8C%D8%A7%D8%B6%DB%8C-%D9%87%D8%B4%D8%AA%D9%85-%D9%81%D8%B5%D9%84-%D8%A8%D9%87-%D9%81%D8%B5%D9%84/', source: 'میهن مکتب', tags: ['فصل به فصل'] },
+        { type: 'article', kind: 'exam', title: 'نمونه سوالات ریاضی هشتم با جواب (فصل به فصل)', url: 'https://blog.filimo.school/nemoone/nemoone-math/nemoone-math-8th/', source: 'فیلیمومدرسه', tags: ['PDF', 'فصل به فصل'] },
+        { type: 'article', kind: 'article', title: 'گام به گام ریاضی هشتم (حل تمرین صفحه به صفحه)', url: 'https://bahalmag.ir/%DA%AF%D8%A7%D9%85-%D8%A8%D9%87-%DA%AF%D8%A7%D9%85-%D8%B1%DB%8C%D8%A7%D8%B6%DB%8C-%D9%87%D8%B4%D8%AA%D9%85/', source: 'باهال مگ', tags: ['گام به گام'] },
+        { type: 'article', kind: 'article', title: 'گام به گام ریاضی هشتم (فیلیمومدرسه)', url: 'https://blog.filimo.school/gambegam/gambegam-8th/gambegam-8th-math/', source: 'فیلیمومدرسه', tags: ['حل تمرین'] },
+        { type: 'article', kind: 'exam', title: 'نمونه سوال + پاسخ ریاضی هشتم (بانک امتحان)', url: 'https://iran20-esf.smart-ensha.ir/', source: 'smart-ensha', tags: ['امتحان', 'دانلود'] },
+        { type: 'article', kind: 'article', title: 'جزوه ریاضی پایه هشتم (دانلود 1) - گوگل درایو', url: 'https://drive.google.com/uc?export=download&id=1Jjo0IcnYNcWlKdXVV1iYbj8InvLDHm6e', source: 'Google Drive', tags: ['جزوه', 'PDF'] },
+        { type: 'article', kind: 'article', title: 'درسنامه جامع ریاضی هشتم (دانلود 2) - گوگل درایو', url: 'https://drive.google.com/uc?export=download&id=1pLIJXiIw-zF-WQobv-o2Qtv7Z3XeoUzu', source: 'Google Drive', tags: ['درسنامه', 'PDF'] },
+
+        { type: 'video', title: 'فیلم‌های آموزشی ریاضی هشتم (آرشیو فصل‌ها)', url: 'https://mabnaqe.com/category/virtual-school/8/riyazi8/', source: 'mabnaqe.com', tags: ['فیلم', 'فصل‌ها'] },
+        { type: 'video', title: 'فعالیت‌های ویدیویی ریاضی (پایه هشتم/نهم) - رشد', url: 'https://www.roshd.ir/riazi/users/%DA%AF%D8%B1%D9%88%D9%87-%D9%85%D8%AD%D8%AA%D9%88%D8%A7%DB%8C-%D8%B1%D8%B4%D8%AF', source: 'roshd.ir', tags: ['ویدئو', 'رشد'] },
+        { type: 'video', title: 'درس‌ها و فصل‌ها (هفتم/هشتم/نهم) - Math Game', url: 'https://mathgames.ir/lessons/', source: 'mathgames.ir', tags: ['فصل‌ها', 'تمرین'] }
+      ],
+
+      9: [
+        { type: 'article', kind: 'book', title: 'کتاب درسی ریاضی نهم (PDF) - دفتر انتشارات', url: 'https://chap.sch.ir/books/3916', source: 'chap.sch.ir', tags: ['PDF'] },
+        { type: 'article', kind: 'exam', title: 'نمونه سوالات ریاضی نهم با جواب (فصل به فصل)', url: 'https://blog.filimo.school/nemoone/nemoone-math/nemoone-math-9th/', source: 'فیلیمومدرسه', tags: ['PDF', 'فصل به فصل'] },
+        { type: 'article', kind: 'exam', title: 'نمونه سوال ریاضی نهم | نوبت دوم', url: 'https://mihanmaktab.com/riazi9t2/', source: 'میهن مکتب', tags: ['نوبت دوم', 'با پاسخ'] },
+        { type: 'article', kind: 'exam', title: 'سوالات امتحانی ریاضی نهم فصل به فصل', url: 'https://mihanmaktab.com/%D8%B3%D9%88%D8%A7%D9%84%D8%A7%D8%AA-%D8%A7%D9%85%D8%AA%D8%AD%D8%A7%D9%86%DB%8C-%D8%B1%DB%8C%D8%A7%D8%B6%DB%8C-%D9%86%D9%87%D9%85-%D9%81%D8%B5%D9%84-%D8%A8%D9%87-%D9%81%D8%B5%D9%84/', source: 'میهن مکتب', tags: ['فصل به فصل'] },
+        { type: 'article', kind: 'exam', title: 'نمونه سوال نوبت اول ریاضی نهم | سری اول (PDF)', url: 'https://darsino.org/content/565', source: 'درسینو', tags: ['نوبت اول', 'PDF'] },
+        { type: 'article', kind: 'exam', title: 'نمونه سوالات امتحانی پایه نهم (میان نوبت اول) - PDF', url: 'https://dtalash.com/m9p113981399/', source: 'dtalash.com', tags: ['میان‌ترم', 'PDF'] },
+        { type: 'article', kind: 'article', title: 'درسنامه فصل‌های ریاضی نهم (مقاله + گام به گام)', url: 'https://bekhun.com/9/math-9/', source: 'bekhun.com', tags: ['آموزش', 'فصل‌ها'] },
+        { type: 'article', kind: 'article', title: 'لیست مباحث ریاضی نهم (فصل به فصل)', url: 'https://behroshd.com/%D9%84%DB%8C%D8%B3%D8%AA-%D9%85%D8%A8%D8%A7%D8%AD%D8%AB-%D8%B1%DB%8C%D8%A7%D8%B6%DB%8C-%D9%86%D9%87%D9%85/', source: 'behroshd.com', tags: ['فصل‌ها'] },
+        { type: 'article', kind: 'exam', title: 'نمونه سوال امتحانی ریاضی نهم (نوبت اول/دوم)', url: 'https://nedaedanesh.ir/2627/2627/', source: 'nedaedanesh.ir', tags: ['نوبت اول', 'نوبت دوم'] },
+        { type: 'article', kind: 'article', title: 'گام به گام فصل 1 ریاضی نهم (مجموعه‌ها)', url: 'https://bahalmag.ir/%DA%AF%D8%A7%D9%85-%D8%A8%D9%87-%DA%AF%D8%A7%D9%85-%D9%81%D8%B5%D9%84-1-%D8%B1%DB%8C%D8%A7%D8%B6%DB%8C-%D9%86%D9%87%D9%85/', source: 'باهال مگ', tags: ['فصل 1'] },
+
+        { type: 'video', title: 'ویدئوهای آموزشی ریاضی (رشد) - فعالیت‌های گروه محتوای رشد', url: 'https://www.roshd.ir/riazi/users/%DA%AF%D8%B1%D9%88%D9%87-%D9%85%D8%AD%D8%AA%D9%88%D8%A7%DB%8C-%D8%B1%D8%B4%D8%AF', source: 'roshd.ir', tags: ['ویدئو', 'رشد'] },
+        { type: 'video', title: 'درس‌ها و فصل‌ها (هفتم/هشتم/نهم) - Math Game', url: 'https://mathgames.ir/lessons/', source: 'mathgames.ir', tags: ['فصل‌ها', 'تمرین'] }
+      ]
+    };
+
+    const state = {
+      grade: 7,
+      type: 'all',
+      query: ''
+    };
+
+    const gradeButtons = Array.from(document.querySelectorAll('[data-grade]'));
+    const typeButtons = Array.from(document.querySelectorAll('[data-type]'));
+    const cardsEl = document.getElementById('cards');
+    const titleEl = document.getElementById('panelTitle');
+    const searchEl = document.getElementById('searchInput');
+
+    function normalizeText(str) {
+      return (str || '')
+        .toString()
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function iconFor(type, kind) {
+      if (type === 'video') return 'fa-solid fa-circle-play';
+      if (kind === 'exam') return 'fa-solid fa-clipboard-question';
+      if (kind === 'book') return 'fa-solid fa-book';
+      return 'fa-solid fa-file-lines';
+    }
+
+    function btnClass(type) {
+      if (type === 'video') return 'btn video';
+      return 'btn article';
+    }
+
+    function labelFor(type) {
+      if (type === 'video') return 'مشاهده ویدئو';
+      return 'باز کردن لینک';
+    }
+
+    function setActive(buttons, predicate) {
+      buttons.forEach(btn => {
+        if (predicate(btn)) btn.classList.add('active');
+        else btn.classList.remove('active');
+      });
+    }
+
+    function render() {
+      const list = resources[state.grade] || [];
+      const q = normalizeText(state.query);
+
+      titleEl.innerHTML = `<i class="fa-solid fa-layer-group"></i><span>پایه ${state.grade === 7 ? 'هفتم' : state.grade === 8 ? 'هشتم' : 'نهم'}</span>`;
+
+      const filtered = list.filter(item => {
+        if (state.type !== 'all' && item.type !== state.type) return false;
+        if (!q) return true;
+        const hay = normalizeText([item.title, item.source, ...(item.tags || [])].join(' '));
+        return hay.includes(q);
+      });
+
+      cardsEl.innerHTML = filtered.map(item => {
+        const kindLabel = item.kind === 'book' ? 'کتاب' : item.kind === 'exam' ? 'نمونه‌سوال' : 'جزوه/مقاله';
+        const kindClass = item.kind === 'book' ? 'book' : item.kind === 'exam' ? 'exam' : 'article';
+        const tags = [
+          `<span class="tag ${item.type}">${item.type === 'video' ? 'ویدئو' : 'مقاله/جزوه'}</span>`,
+          item.type !== 'video' ? `<span class="tag ${kindClass}">${kindLabel}</span>` : '',
+          ...(item.tags || []).slice(0, 3).map(t => `<span class="tag">${t}</span>`)
+        ].filter(Boolean).join('');
+
+        return `
+          <article class="card" data-type="${item.type}">
+            <div class="card-top">
+              <div>
+                <h3><i class="${iconFor(item.type, item.kind)}" style="margin-left:10px;"></i>${item.title}</h3>
+                <div class="meta">منبع: ${item.source || '—'}</div>
+              </div>
+            </div>
+            <div class="tags">${tags}</div>
+            <a class="${btnClass(item.type)}" href="${item.url}" target="_blank" rel="noopener noreferrer">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              <span>${labelFor(item.type)}</span>
+            </a>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function initFromHash() {
+      const m = (location.hash || '').match(/grade=(7|8|9)/);
+      if (m) state.grade = Number(m[1]);
+    }
+
+    function updateHash() {
+      history.replaceState(null, '', `#grade=${state.grade}`);
+    }
+
+    gradeButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.grade = Number(btn.getAttribute('data-grade'));
+        updateHash();
+        setActive(gradeButtons, b => Number(b.getAttribute('data-grade')) === state.grade);
+        render();
+      });
+    });
+
+    typeButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        state.type = btn.getAttribute('data-type');
+        setActive(typeButtons, b => b.getAttribute('data-type') === state.type);
+        render();
+      });
+    });
+
+    searchEl.addEventListener('input', (e) => {
+      state.query = e.target.value;
+      render();
+    });
+
+    initFromHash();
+    setActive(gradeButtons, b => Number(b.getAttribute('data-grade')) === state.grade);
+    setActive(typeButtons, b => b.getAttribute('data-type') === state.type);
+    render();
+  </script>
+</body>
+</html>
