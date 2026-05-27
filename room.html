@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بازی سه‌بعدی ریاضی: معمای پل</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: Tahoma, sans-serif; background-color: #87CEEB; }
+        #canvas-container { width: 100vw; height: 100vh; display: block; }
+        
+        /* صفحه استارت / مرگ / بین مراحل */
+        #blocker {
+            position: absolute; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 20; color: white; text-align: center; backdrop-filter: blur(5px);
+        }
+        #instructions { cursor: pointer; background: rgba(0,0,0,0.5); padding: 40px; border-radius: 15px; border: 2px solid #e94560;}
+        
+        /* نشانه‌گر و UI تایپ */
+        #crosshair {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: rgba(255, 255, 255, 0.7); font-size: 24px; pointer-events: none; z-index: 15;
+        }
+        #typing-ui {
+            position: absolute; top: 55%; left: 50%; transform: translateX(-50%);
+            color: #2ecc71; font-size: 20px; font-weight: bold; font-family: monospace;
+            text-shadow: 1px 1px 3px black; pointer-events: none; z-index: 15;
+        }
+        
+        /* داشبورد اطلاعات */
+        #ui-layer {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(25, 30, 45, 0.85); padding: 15px 30px; border-radius: 12px;
+            color: white; text-align: center; border: 1px solid rgba(255,255,255,0.1); z-index: 10;
+            display: flex; gap: 30px; align-items: center; justify-content: space-between; min-width: 400px;
+        }
+        .stat-box { font-size: 1.2em; font-weight: bold; }
+        .highlight { color: #e94560; font-size: 1.4em;}
+        .success-text { color: #2ecc71; }
+        
+        .guide {
+            position: absolute; bottom: 20px; right: 20px; background: rgba(0,0,0,0.7);
+            color: white; padding: 10px 15px; border-radius: 8px; font-size: 0.9em; z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="blocker">
+        <div id="instructions">
+            <h1 id="menu-title" style="font-size:40px; color: #e94560;">فرار از دره فیثاغورس</h1>
+            <p id="menu-subtitle" style="font-size: 20px;">برای شروع روی صفحه کلیک کنید</p>
+            <hr style="border-color: #444; margin: 20px 0;">
+            <p>راه رفتن: <b>W A S D</b> | نگاه کردن: <b>موس</b></p>
+            <p style="color: #f1c40f;">برای ساخت پل، وقتی در حال راه رفتن هستید <b>عدد</b> را تایپ کنید و <b>Enter</b> بزنید.</p>
+        </div>
+    </div>
+
+    <div id="crosshair">+</div>
+    <div id="typing-ui">طول پل: <span id="live-input">_</span></div>
+
+    <div id="ui-layer">
+        <div class="stat-box">مرحله: <span id="ui-level" class="success-text">1</span></div>
+        <div class="stat-box">امتیاز: <span id="ui-score" class="success-text">0</span></div>
+        <div class="stat-box">ارتفاع: <span id="ui-a" class="highlight">6</span> | فاصله: <span id="ui-b" class="highlight">8</span></div>
+    </div>
+
+    <div class="guide">تایپ عدد با کیبورد | ساخت پل: Enter</div>
+    
+    <div id="canvas-container"></div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+        // --- متغیرهای منطق و بازی ---
+        const levels = [
+            { a: 3, b: 4, c: 5 },
+            { a: 6, b: 8, c: 10 },
+            { a: 5, b: 12, c: 13 },
+            { a: 9, b: 12, c: 15 },
+            { a: 8, b: 15, c: 17 },
+            { a: 12, b: 16, c: 20 }
+        ];
+        
+        let currentLevel = 0;
+        let score = 0;
+        let typedAnswer = "";
+        let animationState = 'idle'; // idle, falling, solid
+        let targetRotation = 0;
+        let isGrounded = false;
+        let isDead = false;
+
+        // --- تنظیمات Three.js ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+        scene.fog = new THREE.Fog(0x87CEEB, 10, 100);
+
+        const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(20, 40, 20);
+        dirLight.castShadow = true;
+        scene.add(dirLight);
+
+        // --- کنترلر و منوها ---
+        const controls = new PointerLockControls(camera, document.body);
+        const blocker = document.getElementById('blocker');
+        const instructions = document.getElementById('instructions');
+        const liveInputUI = document.getElementById('live-input');
+
+        instructions.addEventListener('click', () => {
+            if (isDead) resetGame();
+            controls.lock();
+        });
+        
+        controls.addEventListener('lock', () => {
+            blocker.style.display = 'none';
+        });
+        
+        controls.addEventListener('unlock', () => {
+            if (!isDead) { // اگر نمرده و فقط ESC زده
+                blocker.style.display = 'flex';
+                document.getElementById('menu-title').textContent = "بازی متوقف شد";
+                document.getElementById('menu-title').style.color = "white";
+                document.getElementById('menu-subtitle').textContent = "برای ادامه کلیک کنید";
+            }
+        });
+        scene.add(controls.getObject());
+
+        // --- متریال و اشیاء صحنه ---
+        const rockMaterial = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.9 });
+        const rockMaterialWin = new THREE.MeshStandardMaterial({ color: 0x27ae60, roughness: 0.9 }); // رنگ صخره هدف
+        const woodMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.9 });
+
+        let cliffStart, cliffEnd, bridgeMesh;
+        const bridgePivot = new THREE.Group();
+        scene.add(bridgePivot);
+
+        // لیست اشیایی که می‌توان روی آن‌ها راه رفت (برای جاذبه)
+        let walkableObjects = [];
+
+        function buildLevel() {
+            // پاکسازی مرحله قبل
+            if (cliffStart) scene.remove(cliffStart);
+            if (cliffEnd) scene.remove(cliffEnd);
+            if (bridgeMesh) bridgePivot.remove(bridgeMesh);
+            walkableObjects = [];
+
+            const lvl = levels[currentLevel];
+            
+            // آپدیت UI
+            document.getElementById('ui-level').textContent = currentLevel + 1;
+            document.getElementById('ui-score').textContent = score;
+            document.getElementById('ui-a').textContent = lvl.a;
+            document.getElementById('ui-b').textContent = lvl.b;
+
+            // ساخت صخره شروع
+            cliffStart = new THREE.Mesh(new THREE.BoxGeometry(15, 60, 15), rockMaterial);
+            cliffStart.position.set(-7.5, -30, 0); 
+            cliffStart.receiveShadow = true;
+            scene.add(cliffStart);
+            walkableObjects.push(cliffStart);
+
+            // ساخت صخره پایان
+            cliffEnd = new THREE.Mesh(new THREE.BoxGeometry(15, 60, 15), rockMaterialWin);
+            cliffEnd.position.set(lvl.b + 7.5, -lvl.a - 30, 0); 
+            cliffEnd.receiveShadow = true;
+            scene.add(cliffEnd);
+            walkableObjects.push(cliffEnd);
+
+            // ریست پل
+            bridgePivot.position.set(0, 0, 0);
+            bridgePivot.rotation.z = Math.PI / 2;
+            animationState = 'idle';
+
+            // ریست بازیکن
+            velocity.set(0,0,0);
+            playerVelocityY = 0;
+            camera.position.set(-5, 2, 0);
+            
+            typedAnswer = "";
+            liveInputUI.textContent = "_";
+        }
+
+        // --- سیستم ورودی (حرکت و تایپ) ---
+        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+        const velocity = new THREE.Vector3();
+        const direction = new THREE.Vector3();
+        let playerVelocityY = 0;
+
+        document.addEventListener('keydown', (event) => {
+            if (!controls.isLocked || isDead) return;
+
+            // کنترل حرکت
+            switch (event.code) {
+                case 'ArrowUp': case 'KeyW': moveForward = true; break;
+                case 'ArrowLeft': case 'KeyA': moveLeft = true; break;
+                case 'ArrowDown': case 'KeyS': moveBackward = true; break;
+                case 'ArrowRight': case 'KeyD': moveRight = true; break;
+            }
+
+            // سیستم تایپ زنده اعداد
+            if (/^[0-9]$/.test(event.key)) {
+                if (typedAnswer.length < 4) typedAnswer += event.key;
+                liveInputUI.textContent = typedAnswer + "_";
+            } 
+            else if (event.key === 'Backspace') {
+                typedAnswer = typedAnswer.slice(0, -1);
+                liveInputUI.textContent = (typedAnswer.length > 0 ? typedAnswer : "") + "_";
+            }
+            else if (event.key === 'Enter') {
+                if (typedAnswer !== "") {
+                    submitAnswer(parseInt(typedAnswer));
+                    typedAnswer = "";
+                    liveInputUI.textContent = "_";
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            switch (event.code) {
+                case 'ArrowUp': case 'KeyW': moveForward = false; break;
+                case 'ArrowLeft': case 'KeyA': moveLeft = false; break;
+                case 'ArrowDown': case 'KeyS': moveBackward = false; break;
+                case 'ArrowRight': case 'KeyD': moveRight = false; break;
+            }
+        });
+
+        // --- منطق بررسی جواب ---
+        function submitAnswer(ans) {
+            const lvl = levels[currentLevel];
+            
+            // ساخت بدنه پل
+            if (bridgeMesh) bridgePivot.remove(bridgeMesh);
+            bridgeMesh = new THREE.Mesh(new THREE.BoxGeometry(ans, 0.5, 3), woodMaterial);
+            bridgeMesh.position.set(ans / 2, 0, 0);
+            bridgeMesh.castShadow = true;
+            bridgePivot.add(bridgeMesh);
+            bridgePivot.rotation.z = Math.PI / 2; // بالا
+
+            if (ans === lvl.c) {
+                targetRotation = -Math.atan2(lvl.a, lvl.b);
+                animationState = 'solid'; // پل درست
+                // اضافه کردن پل به لیست سطوح قابل راه رفتن
+                walkableObjects.push(bridgeMesh); 
+            } else {
+                targetRotation = -Math.PI / 2; // سقوط مستقیم
+                animationState = 'falling'; // پل اشتباه
+                // پل اشتباه را به walkableObjects اضافه نمی‌کنیم تا بازیکن از آن رد شود و بیفتد
+            }
+        }
+
+        // --- توابع مرگ و ریست ---
+        function triggerDeath() {
+            isDead = true;
+            controls.unlock();
+            blocker.style.display = 'flex';
+            document.getElementById('menu-title').textContent = "شما مردید!";
+            document.getElementById('menu-title').style.color = "#e74c3c";
+            document.getElementById('menu-subtitle').textContent = "امتیاز شما صفر شد. برای شروع مجدد کلیک کنید.";
+        }
+
+        function resetGame() {
+            isDead = false;
+            score = 0;
+            currentLevel = 0;
+            buildLevel();
+        }
+
+        function nextLevel() {
+            score += 100;
+            currentLevel++;
+            if (currentLevel >= levels.length) {
+                // تمام مراحل تمام شد
+                controls.unlock();
+                blocker.style.display = 'flex';
+                document.getElementById('menu-title').textContent = "برنده شدید!";
+                document.getElementById('menu-title').style.color = "#f1c40f";
+                document.getElementById('menu-subtitle').textContent = `امتیاز نهایی: ${score} - رفرش صفحه برای شروع مجدد`;
+                currentLevel = 0;
+            } else {
+                buildLevel();
+            }
+        }
+
+        // --- حلقه فیزیک و رندر ---
+        const clock = new THREE.Clock();
+        const raycaster = new THREE.Raycaster();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = Math.min(clock.getDelta(), 0.1);
+
+            if (controls.isLocked) {
+                // 1. Raycasting برای جاذبه (تشخیص زمین زیر پا)
+                raycaster.set(camera.position, new THREE.Vector3(0, -1, 0));
+                
+                // true باعث میشه برخورد با فرزندان گروه (مثل پل) هم چک بشه
+                const intersects = raycaster.intersectObjects(walkableObjects, true); 
+                
+                if (intersects.length > 0 && intersects[0].distance < 2.5) {
+                    isGrounded = true;
+                    playerVelocityY = 0;
+                    // چسباندن دوربین به ارتفاع دقیق بالای سطح
+                    camera.position.y = intersects[0].point.y + 2.0; 
+                } else {
+                    isGrounded = false;
+                    playerVelocityY -= 40.0 * delta; // اعمال جاذبه
+                }
+
+                // حرکت اول شخص
+                velocity.x -= velocity.x * 10.0 * delta;
+                velocity.z -= velocity.z * 10.0 * delta;
+
+                direction.z = Number(moveForward) - Number(moveBackward);
+                direction.x = Number(moveRight) - Number(moveLeft);
+                direction.normalize();
+
+                if (moveForward || moveBackward) velocity.z -= direction.z * 50.0 * delta;
+                if (moveLeft || moveRight) velocity.x -= direction.x * 50.0 * delta;
+
+                controls.moveRight(-velocity.x * delta);
+                controls.moveForward(-velocity.z * delta);
+                camera.position.y += playerVelocityY * delta; // اعمال حرکت عمودی (سقوط)
+
+                // 2. چک کردن مرگ (افتادن تو دره)
+                if (camera.position.y < -40) {
+                    triggerDeath();
+                }
+
+                // 3. چک کردن رسیدن به هدف (پایان مرحله)
+                const lvl = levels[currentLevel];
+                if (camera.position.x > lvl.b + 2 && isGrounded) {
+                    nextLevel();
+                }
+            }
+
+            // انیمیشن پل
+            if (animationState === 'solid' || animationState === 'falling') {
+                bridgePivot.rotation.z += (targetRotation - bridgePivot.rotation.z) * 0.05;
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // شروع بازی با ساخت مرحله اول
+        buildLevel();
+        animate();
+    </script>
+</body>
+</html>
