@@ -1,0 +1,2630 @@
+     // ==================== پس‌زمینه تعاملی ====================
+        function initMathCanvas() {
+            const canvas = document.getElementById('mathCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const formulas = ['E=mc²', 'a²+b²=c²', '∑', 'π', 'Δ', '√', 'sin', 'cos', 'tan', '∫', 'x²', 'log', 'f(x)'];
+            const particles = [];
+            const mouse = { x: null, y: null };
+            let width = window.innerWidth;
+            let height = window.innerHeight;
+            let dpr = window.devicePixelRatio || 1;
+
+            function resize() {
+                width = window.innerWidth;
+                height = window.innerHeight;
+                dpr = window.devicePixelRatio || 1;
+                canvas.width = width * dpr;
+                canvas.height = height * dpr;
+                canvas.style.width = `${width}px`;
+                canvas.style.height = `${height}px`;
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            }
+
+            function createParticles() {
+                particles.length = 0;
+                const count = Math.min(60, Math.max(30, Math.floor(width / 20)));
+                for (let i = 0; i < count; i++) {
+                    const text = formulas[Math.floor(Math.random() * formulas.length)];
+                    particles.push({
+                        x: Math.random() * width,
+                        y: Math.random() * height,
+                        vx: (Math.random() - 0.5) * 0.6,
+                        vy: (Math.random() - 0.5) * 0.6,
+                        size: 14 + Math.random() * 12,
+                        alpha: 0.25 + Math.random() * 0.6,
+                        text
+                    });
+                }
+            }
+
+            function animate() {
+                ctx.clearRect(0, 0, width, height);
+                particles.forEach(p => {
+                    const dx = mouse.x !== null ? p.x - mouse.x : 0;
+                    const dy = mouse.y !== null ? p.y - mouse.y : 0;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (mouse.x !== null && dist < 140) {
+                        const force = (140 - dist) / 140;
+                        p.vx += (dx / (dist || 1)) * force * 0.08;
+                        p.vy += (dy / (dist || 1)) * force * 0.08;
+                    }
+
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    p.vx *= 0.98;
+                    p.vy *= 0.98;
+
+                    if (p.x < -50) p.x = width + 50;
+                    if (p.x > width + 50) p.x = -50;
+                    if (p.y < -50) p.y = height + 50;
+                    if (p.y > height + 50) p.y = -50;
+
+                    ctx.globalAlpha = p.alpha;
+                    ctx.font = `${p.size}px 'Segoe UI', Tahoma, sans-serif`;
+                    ctx.fillStyle = '#e2e8f0';
+                    ctx.fillText(p.text, p.x, p.y);
+                });
+                ctx.globalAlpha = 1;
+                requestAnimationFrame(animate);
+            }
+
+            window.addEventListener('resize', () => {
+                resize();
+                createParticles();
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+            });
+
+            window.addEventListener('mouseleave', () => {
+                mouse.x = null;
+                mouse.y = null;
+            });
+
+            resize();
+            createParticles();
+            animate();
+        }
+
+        // ==================== اسپلش شروع ====================
+        function initIntroSplash() {
+            const splash = document.getElementById('introSplash');
+            if (!splash) return;
+
+            const hide = () => {
+                if (splash.classList.contains('hide')) return;
+                splash.classList.add('hide');
+                setTimeout(() => splash.remove(), 700);
+            };
+
+            splash.addEventListener('click', hide);
+            setTimeout(hide, 2000);
+        }
+
+        // ==================== سیستم سطح‌بندی و لول آپ ====================
+        let levelSystem;
+
+        // ==================== محاسبات سنگین (بدون هنگ UI) ====================
+        // اجرای محاسبات عددی در Web Worker + BigInt تا UI قفل نشود.
+        let mathWorker = null;
+        let mathWorkerReqId = 1;
+        const mathWorkerPending = new Map();
+
+        function ensureMathWorker() {
+            if (mathWorker) return mathWorker;
+
+            const workerSource = `
+                const MAX_STEPS = 2_500_000; // جلوگیری از محاسبات بی‌نهایت
+
+                function parseBigIntStrict(value) {
+                    const raw = String(value || '').trim();
+                    if (!raw) throw new Error('ورودی خالی است');
+                    if (!/^[+-]?\\d+$/.test(raw)) throw new Error('فقط عدد صحیح پشتیبانی می‌شود');
+                    // جلوگیری از ورودی‌های خیلی خیلی بزرگ که عملاً بی‌پایان می‌شوند
+                    if (raw.replace(/^[-+]/, '').length > 800) throw new Error('عدد خیلی بزرگ است (بیش از 800 رقم)');
+                    return BigInt(raw);
+                }
+
+                function absBigInt(n) { return n < 0n ? -n : n; }
+
+                function modPow(base, exp, mod) {
+                    let result = 1n;
+                    let b = base % mod;
+                    let e = exp;
+                    while (e > 0n) {
+                        if (e & 1n) result = (result * b) % mod;
+                        b = (b * b) % mod;
+                        e >>= 1n;
+                    }
+                    return result;
+                }
+
+                // Miller-Rabin (deterministic for 64-bit range; still very good outside)
+                function isProbablePrime(n) {
+                    n = absBigInt(n);
+                    if (n < 2n) return false;
+                    const smallPrimes = [2n,3n,5n,7n,11n,13n,17n,19n,23n,29n,31n,37n];
+                    for (const p of smallPrimes) {
+                        if (n === p) return true;
+                        if (n % p === 0n) return false;
+                    }
+
+                    // write n-1 = d * 2^s
+                    let d = n - 1n;
+                    let s = 0n;
+                    while ((d & 1n) === 0n) {
+                        d >>= 1n;
+                        s++;
+                    }
+
+                    // bases set for 64-bit determinism
+                    const bases = [2n, 325n, 9375n, 28178n, 450775n, 9780504n, 1795265022n];
+                    for (const a0 of bases) {
+                        const a = a0 % n;
+                        if (a === 0n) continue;
+                        let x = modPow(a, d, n);
+                        if (x === 1n || x === n - 1n) continue;
+                        let continueOuter = false;
+                        for (let r = 1n; r < s; r++) {
+                            x = (x * x) % n;
+                            if (x === n - 1n) { continueOuter = true; break; }
+                        }
+                        if (continueOuter) continue;
+                        return false;
+                    }
+                    return true;
+                }
+
+                function trialFactorization(n) {
+                    n = absBigInt(n);
+                    const factors = [];
+                    if (n < 2n) return factors;
+
+                    let steps = 0;
+                    const pushFactor = (p) => { factors.push(p); };
+
+                    while (n % 2n === 0n) {
+                        pushFactor(2n);
+                        n /= 2n;
+                        if (++steps > MAX_STEPS) return { factors, remainder: n, timeout: true };
+                    }
+                    let f = 3n;
+                    while (f * f <= n) {
+                        if (n % f === 0n) {
+                            pushFactor(f);
+                            n /= f;
+                        } else {
+                            f += 2n;
+                        }
+                        if (++steps > MAX_STEPS) return { factors, remainder: n, timeout: true };
+                    }
+                    if (n > 1n) pushFactor(n);
+                    return { factors, remainder: 1n, timeout: false };
+                }
+
+                function countDivisorsByFactorization(n) {
+                    n = absBigInt(n);
+                    if (n < 1n) throw new Error('عدد باید مثبت باشد');
+                    if (n === 1n) return { count: 1n, factors: [] };
+
+                    const res = trialFactorization(n);
+                    const factors = res.factors;
+                    const counts = new Map();
+                    for (const p of factors) counts.set(p, (counts.get(p) || 0n) + 1n);
+                    let total = 1n;
+                    for (const exp of counts.values()) total *= (exp + 1n);
+                    return { count: total, factors, timeout: res.timeout, remainder: res.remainder };
+                }
+
+                onmessage = (e) => {
+                    const msg = e.data || {};
+                    const { id, task, value } = msg;
+                    try {
+                        const n = parseBigIntStrict(value);
+                        if (task === 'isPrime') {
+                            if (n < 2n) {
+                                postMessage({ id, ok: true, payload: { n: String(n), isPrime: false } });
+                                return;
+                            }
+                            const isPrime = isProbablePrime(n);
+                            postMessage({ id, ok: true, payload: { n: String(n), isPrime } });
+                            return;
+                        }
+                        if (task === 'factorize') {
+                            if (n < 2n) throw new Error('عدد باید بزرگتر از 1 باشد');
+                            const r = trialFactorization(n);
+                            postMessage({ id, ok: true, payload: { n: String(n), factors: r.factors.map(String), timeout: r.timeout, remainder: String(r.remainder) } });
+                            return;
+                        }
+                        if (task === 'countDivisors') {
+                            const r = countDivisorsByFactorization(n);
+                            postMessage({ id, ok: true, payload: { n: String(n), count: String(r.count), factors: r.factors.map(String), timeout: !!r.timeout, remainder: r.remainder ? String(r.remainder) : null } });
+                            return;
+                        }
+                        throw new Error('وظیفه نامعتبر است');
+                    } catch (err) {
+                        postMessage({ id, ok: false, error: (err && err.message) ? err.message : String(err) });
+                    }
+                };
+            `;
+
+            const blob = new Blob([workerSource], { type: 'text/javascript' });
+            const url = URL.createObjectURL(blob);
+            mathWorker = new Worker(url);
+            URL.revokeObjectURL(url);
+
+            mathWorker.onmessage = (e) => {
+                const msg = e.data || {};
+                const pending = mathWorkerPending.get(msg.id);
+                if (!pending) return;
+                mathWorkerPending.delete(msg.id);
+                if (msg.ok) pending.resolve(msg.payload);
+                else pending.reject(new Error(msg.error || 'خطای نامشخص'));
+            };
+
+            mathWorker.onerror = () => {
+                // اگر worker مشکل پیدا کند، همه درخواست‌های منتظر را fail می‌کنیم
+                for (const [, pending] of mathWorkerPending.entries()) {
+                    pending.reject(new Error('خطا در worker محاسباتی'));
+                }
+                mathWorkerPending.clear();
+            };
+
+            return mathWorker;
+        }
+
+        function runMathTask(task, value) {
+            const worker = ensureMathWorker();
+            const id = mathWorkerReqId++;
+            return new Promise((resolve, reject) => {
+                mathWorkerPending.set(id, { resolve, reject });
+                worker.postMessage({ id, task, value });
+            });
+        }
+
+        function safeSetResult(resultDiv, htmlOrText, isHtml = false) {
+            if (!resultDiv) return;
+            if (isHtml) resultDiv.innerHTML = htmlOrText;
+            else resultDiv.textContent = htmlOrText;
+        }
+
+        class LevelSystem {
+            constructor() {
+                this.xp = localStorage.getItem('mathXP') ? parseInt(localStorage.getItem('mathXP')) : 20;
+                this.level = this.calculateLevel(this.xp);
+                this.stats = JSON.parse(localStorage.getItem('mathStats')) || {
+                    calcs: 0,
+                    equations: 0,
+                    formulaViews: 0
+                };
+                this.achievements = JSON.parse(localStorage.getItem('mathAchievements')) || {
+                    firstCalc: false,
+                    tenCalcs: false,
+                    fiveEquations: false,
+                    formulaExplorer: false
+                };
+                this.flags = JSON.parse(localStorage.getItem('mathFlags')) || {
+                    formulaViewed: false
+                };
+
+                this.updateUI();
+                this.updateAchievementsUI();
+            }
+
+            calculateLevel(xp) {
+                if (xp < 100) return 1;
+                if (xp < 300) return 2;
+                if (xp < 600) return 3;
+                if (xp < 1000) return 4;
+                if (xp < 1500) return 5;
+                if (xp < 2100) return 6;
+                if (xp < 2800) return 7;
+                if (xp < 3600) return 8;
+                if (xp < 4500) return 9;
+                return 10;
+            }
+
+            getLevelInfo(level) {
+                const levels = {
+                    1: { name: "مبتدی", icon: "🎯", nextXP: 100, perk: "شروع مسیر ریاضی" },
+                    2: { name: "جرقه‌زن", icon: "⚡", nextXP: 300, perk: "سرعت بیشتر در حل‌ها" },
+                    3: { name: "جستجوگر", icon: "🧭", nextXP: 600, perk: "فتح ابزارهای پیشرفته" },
+                    4: { name: "معمار", icon: "🏗️", nextXP: 1000, perk: "الگوهای حل خلاقانه" },
+                    5: { name: "استادکار", icon: "🔧", nextXP: 1500, perk: "دقت بالا در محاسبات" },
+                    6: { name: "نابغه", icon: "🧠", nextXP: 2100, perk: "حل‌های هوشمندانه" },
+                    7: { name: "کهکشانی", icon: "🌌", nextXP: 2800, perk: "فرمول‌های طلایی" },
+                    8: { name: "افسانه‌ای", icon: "🏆", nextXP: 3600, perk: "قدرت ویژه حل معادلات" },
+                    9: { name: "کیهانی", icon: "💫", nextXP: 4500, perk: "تسلط بر هندسه" },
+                    10: { name: "بی‌نهایت", icon: "♾️", nextXP: 0, perk: "استاد مطلق ریاضی" }
+                };
+                return levels[level] || levels[1];
+            }
+
+            getLevelBaseXP(level) {
+                const baseXP = [0, 0, 100, 300, 600, 1000, 1500, 2100, 2800, 3600, 4500];
+                return baseXP[level] || 0;
+            }
+
+            grantOnce(flagKey, amount, reason, action) {
+                if (this.flags[flagKey]) return;
+                this.flags[flagKey] = true;
+                localStorage.setItem('mathFlags', JSON.stringify(this.flags));
+                this.addXP(amount, reason, { action });
+            }
+
+            addXP(amount, reason = '', meta = {}) {
+                const oldLevel = this.level;
+                this.xp += amount;
+                this.level = this.calculateLevel(this.xp);
+
+                if (meta.action) {
+                    this.recordAction(meta.action);
+                }
+
+                localStorage.setItem('mathXP', this.xp);
+                this.updateUI();
+
+                if (reason) {
+                    this.showNotification(`+${amount} XP! ${reason}`, 'success');
+                }
+
+                if (this.level > oldLevel) {
+                    this.levelUp();
+                }
+
+                const footerLevel = document.getElementById('footerLevel');
+                if (footerLevel) footerLevel.textContent = this.level;
+            }
+
+            recordAction(action) {
+                if (action === 'calc') this.stats.calcs += 1;
+                if (action === 'equation') this.stats.equations += 1;
+                if (action === 'formula') this.stats.formulaViews += 1;
+                localStorage.setItem('mathStats', JSON.stringify(this.stats));
+                this.checkAchievements();
+            }
+
+            checkAchievements() {
+                if (!this.achievements.firstCalc && this.stats.calcs >= 1) {
+                    this.unlockAchievement('firstCalc', '🎉 دستاورد جدید: اولین محاسبه!');
+                }
+                if (!this.achievements.tenCalcs && this.stats.calcs >= 10) {
+                    this.unlockAchievement('tenCalcs', '🔥 دستاورد جدید: ۱۰ محاسبه موفق!');
+                }
+                if (!this.achievements.fiveEquations && this.stats.equations >= 5) {
+                    this.unlockAchievement('fiveEquations', '⚡ دستاورد جدید: ۵ معادله حل شد!');
+                }
+                if (!this.achievements.formulaExplorer && this.stats.formulaViews >= 1) {
+                    this.unlockAchievement('formulaExplorer', '📚 دستاورد جدید: کاوشگر فرمول‌ها!');
+                }
+            }
+
+            unlockAchievement(key, message) {
+                this.achievements[key] = true;
+                localStorage.setItem('mathAchievements', JSON.stringify(this.achievements));
+                this.updateAchievementsUI();
+                this.showNotification(message, 'info');
+            }
+
+            updateAchievementsUI() {
+                const map = [
+                    { key: 'firstCalc', id: 'achFirstCalc' },
+                    { key: 'tenCalcs', id: 'achTenCalcs' },
+                    { key: 'fiveEquations', id: 'achFiveEquations' },
+                    { key: 'formulaExplorer', id: 'achFormulaExplorer' }
+                ];
+                map.forEach(item => {
+                    const el = document.getElementById(item.id);
+                    if (!el) return;
+                    const unlocked = !!this.achievements[item.key];
+                    el.classList.toggle('unlocked', unlocked);
+                    el.classList.toggle('locked', !unlocked);
+                });
+            }
+
+            levelUp() {
+                const levelInfo = this.getLevelInfo(this.level);
+                this.showNotification(`🎉 تبریک! شما به سطح ${this.level} (${levelInfo.name}) ارتقا یافتید!`, 'success');
+                this.launchLevelUpEffect(levelInfo);
+            }
+
+            launchLevelUpEffect(levelInfo) {
+                const overlay = document.createElement('div');
+                overlay.className = 'level-up-overlay';
+                overlay.innerHTML = `
+                    <div class="level-up-card">
+                        <div class="level-badge">${levelInfo.icon}</div>
+                        <h2>لول آپ!</h2>
+                        <p>رسیدی به سطح ${this.level} - ${levelInfo.name}</p>
+                        <p style="color: var(--accent); margin-top: 8px;">${levelInfo.perk}</p>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                requestAnimationFrame(() => overlay.classList.add('show'));
+                this.spawnConfetti(overlay);
+
+                setTimeout(() => {
+                    overlay.classList.remove('show');
+                    setTimeout(() => overlay.remove(), 400);
+                }, 3200);
+            }
+
+            spawnConfetti(container) {
+                const colors = ['#22c55e', '#3b82f6', '#eab308', '#f97316', '#ec4899', '#8b5cf6'];
+                for (let i = 0; i < 28; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    confetti.style.left = `${Math.random() * 100}%`;
+                    confetti.style.top = `${Math.random() * 10}%`;
+                    confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+                    confetti.style.animationDelay = `${Math.random() * 0.2}s`;
+                    container.appendChild(confetti);
+                }
+            }
+
+            updateUI() {
+                const levelInfo = this.getLevelInfo(this.level);
+                const nextLevelXP = levelInfo.nextXP;
+                const xpForThisLevel = this.xp - (this.getLevelBaseXP(this.level));
+                const xpToNextLevel = nextLevelXP - xpForThisLevel;
+
+                const userLevel = document.getElementById('userLevel');
+                const nextLevel = document.getElementById('nextLevelXP');
+                const levelIcon = document.getElementById('levelIcon');
+                const xpFill = document.getElementById('xpFill');
+                const currentXP = document.getElementById('currentXP');
+                const totalXP = document.getElementById('totalXP');
+
+                if (userLevel) userLevel.textContent = `سطح ${this.level}: ${levelInfo.name}`;
+                if (nextLevel) nextLevel.textContent = nextLevelXP > 0 ? `${xpToNextLevel} XP تا سطح بعدی` : 'حداکثر سطح!';
+                if (levelIcon) levelIcon.textContent = levelInfo.icon;
+
+                const progress = nextLevelXP > 0 ? (xpForThisLevel / nextLevelXP) * 100 : 100;
+                if (xpFill) xpFill.style.width = `${Math.min(progress, 100)}%`;
+                if (currentXP) currentXP.textContent = `${this.xp} XP`;
+                if (totalXP) totalXP.textContent = nextLevelXP > 0 ? `/ ${nextLevelXP} XP` : '';
+            }
+
+            showNotification(message, type = 'info') {
+                const toast = document.createElement('div');
+                toast.className = `level-toast ${type}`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                requestAnimationFrame(() => toast.classList.add('show'));
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 400);
+                }, 2600);
+            }
+        }
+
+        function awardXP(amount, reason, action = 'calc') {
+            if (!levelSystem) return;
+            levelSystem.addXP(amount, reason, { action });
+        }
+
+        // ==================== حل معادلات هوشمند ====================
+        function openEquationModal() {
+            const modal = document.getElementById('equationModal');
+            if (modal) {
+                modal.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeEquationModal() {
+            const modal = document.getElementById('equationModal');
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = hamburgerOpen ? 'hidden' : 'auto';
+            }
+        }
+
+        function selectEquationType(type) {
+            const tabs = document.querySelectorAll('.equation-tab');
+            const forms = document.querySelectorAll('.equation-form');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            forms.forEach(form => form.classList.remove('active'));
+
+            if (type === 'linear') {
+                tabs[0].classList.add('active');
+                document.getElementById('linearForm').classList.add('active');
+            } else if (type === 'quadratic') {
+                tabs[1].classList.add('active');
+                document.getElementById('quadraticForm').classList.add('active');
+            } else {
+                tabs[2].classList.add('active');
+                document.getElementById('systemForm').classList.add('active');
+            }
+        }
+
+        function solveLinearEquation() {
+            const a = parseFloat(document.getElementById('linearA').value);
+            const b = parseFloat(document.getElementById('linearB').value);
+
+            if (isNaN(a) || isNaN(b)) {
+                alert('لطفا مقادیر معتبر وارد کنید');
+                return;
+            }
+
+            if (a === 0) {
+                alert('ضریب a نمی‌تواند صفر باشد');
+                return;
+            }
+
+            const x = -b / a;
+            const steps = [
+                `۱. معادله: ${a}x + ${b} = 0`,
+                `۲. انتقال ثابت: ${a}x = ${-b}`,
+                `۳. تقسیم بر ${a}: x = ${(-b)} / ${a}`,
+                `۴. جواب: x = ${x.toFixed(4)}`
+            ];
+
+            awardXP(5, 'حل معادله خطی', 'equation');
+            displayResult(`معادله: ${a}x + ${b} = 0`, `x = ${x.toFixed(4)}`, 'یک جواب حقیقی', steps);
+        }
+
+        function solveQuadraticEquation() {
+            const a = parseFloat(document.getElementById('quadraticA').value);
+            const b = parseFloat(document.getElementById('quadraticB').value);
+            const c = parseFloat(document.getElementById('quadraticC').value);
+
+            if ([a, b, c].some(isNaN)) {
+                alert('لطفا همه مقادیر را وارد کنید');
+                return;
+            }
+
+            if (a === 0) {
+                alert('ضریب a نمی‌تواند صفر باشد');
+                return;
+            }
+
+            const delta = b * b - 4 * a * c;
+            let solution = '';
+            let details = '';
+            let steps = [];
+
+            steps.push(`۱. معادله: ${a}x² + ${b}x + ${c} = 0`);
+            steps.push(`۲. محاسبه دلتا: Δ = b² - 4ac = (${b})² - 4×${a}×${c}`);
+            steps.push(`۳. دلتا = ${delta.toFixed(4)}`);
+
+            if (delta > 0) {
+                const sqrtDelta = Math.sqrt(delta);
+                const x1 = (-b + sqrtDelta) / (2 * a);
+                const x2 = (-b - sqrtDelta) / (2 * a);
+
+                solution = `x₁ = ${x1.toFixed(4)} , x₂ = ${x2.toFixed(4)}`;
+                details = `دو جواب حقیقی مجزا | Δ = ${delta.toFixed(4)} > 0`;
+
+                steps.push('۴. چون Δ > 0، دو جواب حقیقی داریم');
+                steps.push(`۵. x₁ = [-${b} + √${delta.toFixed(4)}] / (2×${a}) = ${x1.toFixed(4)}`);
+                steps.push(`۶. x₂ = [-${b} - √${delta.toFixed(4)}] / (2×${a}) = ${x2.toFixed(4)}`);
+            } else if (delta === 0) {
+                const x = -b / (2 * a);
+                solution = `x = ${x.toFixed(4)}`;
+                details = `یک جواب حقیقی (دو ریشه برابر) | Δ = 0`;
+
+                steps.push('۴. چون Δ = 0، یک جواب داریم');
+                steps.push(`۵. x = -${b} / (2×${a}) = ${x.toFixed(4)}`);
+            } else {
+                const realPart = -b / (2 * a);
+                const imagPart = Math.sqrt(-delta) / (2 * a);
+
+                solution = `x = ${realPart.toFixed(4)} ± ${imagPart.toFixed(4)}i`;
+                details = `دو جواب مختلط | Δ = ${delta.toFixed(4)} < 0`;
+
+                steps.push('۴. چون Δ < 0، جواب‌ها مختلط هستند');
+                steps.push(`۵. بخش حقیقی: -${b} / (2×${a}) = ${realPart.toFixed(4)}`);
+                steps.push(`۶. بخش موهومی: √${-delta.toFixed(4)} / (2×${a}) = ${imagPart.toFixed(4)}`);
+            }
+
+            awardXP(10, 'حل معادله درجه دوم', 'equation');
+            displayResult(`معادله: ${a}x² + ${b}x + ${c} = 0`, solution, details, steps);
+        }
+
+        function solveSystemEquation() {
+            const a1 = parseFloat(document.getElementById('sysA1').value);
+            const b1 = parseFloat(document.getElementById('sysB1').value);
+            const c1 = parseFloat(document.getElementById('sysC1').value);
+            const a2 = parseFloat(document.getElementById('sysA2').value);
+            const b2 = parseFloat(document.getElementById('sysB2').value);
+            const c2 = parseFloat(document.getElementById('sysC2').value);
+
+            if ([a1, b1, c1, a2, b2, c2].some(isNaN)) {
+                alert('لطفا همه مقادیر را وارد کنید');
+                return;
+            }
+
+            const det = a1 * b2 - a2 * b1;
+            let solution = '';
+            let details = '';
+            let steps = [];
+
+            steps.push(`۱. معادله اول: ${a1}x + ${b1}y = ${c1}`);
+            steps.push(`۲. معادله دوم: ${a2}x + ${b2}y = ${c2}`);
+            steps.push(`۳. دترمینان: D = a₁b₂ - a₂b₁ = ${a1}×${b2} - ${a2}×${b1} = ${det}`);
+
+            if (det !== 0) {
+                const detX = c1 * b2 - c2 * b1;
+                const detY = a1 * c2 - a2 * c1;
+                const x = detX / det;
+                const y = detY / det;
+
+                solution = `x = ${x.toFixed(4)} , y = ${y.toFixed(4)}`;
+                details = `سیستم جواب منحصربفرد دارد | D = ${det.toFixed(4)} ≠ 0`;
+
+                steps.push(`۴. Dx = c₁b₂ - c₂b₁ = ${c1}×${b2} - ${c2}×${b1} = ${detX}`);
+                steps.push(`۵. Dy = a₁c₂ - a₂c₁ = ${a1}×${c2} - ${a2}×${c1} = ${detY}`);
+                steps.push(`۶. x = Dx/D = ${detX} / ${det} = ${x.toFixed(4)}`);
+                steps.push(`۷. y = Dy/D = ${detY} / ${det} = ${y.toFixed(4)}`);
+            } else {
+                const detX = c1 * b2 - c2 * b1;
+                const detY = a1 * c2 - a2 * c1;
+
+                if (detX === 0 && detY === 0) {
+                    solution = 'بینهایت جواب دارد';
+                    details = 'سیستم وابسته است';
+                    steps.push('۴. چون D = 0 و Dx = Dy = 0');
+                    steps.push('۵. سیستم وابسته است');
+                    steps.push('۶. نتیجه: بینهایت جواب');
+                } else {
+                    solution = 'هیچ جوابی ندارد';
+                    details = 'سیستم ناسازگار است';
+                    steps.push(`۴. Dx = ${detX} , Dy = ${detY}`);
+                    steps.push('۵. چون D = 0 اما Dx یا Dy ≠ 0');
+                    steps.push('۶. نتیجه: بدون جواب');
+                }
+            }
+
+            awardXP(15, 'حل سیستم معادلات', 'equation');
+            displayResult(
+                `سیستم معادلات:<br>${a1}x + ${b1}y = ${c1}<br>${a2}x + ${b2}y = ${c2}`,
+                solution,
+                details,
+                steps
+            );
+        }
+
+        function displayResult(equation, solution, details, steps) {
+            document.getElementById('equationText').innerHTML = equation;
+            document.getElementById('solutionValue').textContent = solution;
+            document.getElementById('solutionDetails').textContent = details;
+
+            const stepsContainer = document.getElementById('stepsContainer');
+            stepsContainer.innerHTML = '';
+            steps.forEach((step, index) => {
+                const stepDiv = document.createElement('div');
+                stepDiv.className = 'step-item';
+                stepDiv.innerHTML = `<span class="step-number">${index + 1}</span> ${step}`;
+                stepsContainer.appendChild(stepDiv);
+            });
+
+            document.getElementById('equationResult').style.display = 'block';
+            document.getElementById('solutionSteps').style.display = 'block';
+            document.getElementById('equationResult').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showExplanation() {
+            const aiExplanations = [
+                "این معادله با استفاده از روش‌های استاندارد جبری حل شده است. راه‌حل ارائه شده از نظر ریاضی کاملاً صحیح است.",
+                "روند حل این معادله شامل مراحل ساده‌سازی، انتقال جملات و در نهایت محاسبه مقدار مجهول است.",
+                "برای حل این نوع معادلات، باید قواعد جبری را به دقت رعایت کنید و در هر مرحله از صحت عملیات اطمینان حاصل کنید.",
+                "این معادله نمونه خوبی برای آموزش مفاهیم پایه جبر است. می‌توانید از این روش برای حل معادلات مشابه استفاده کنید."
+            ];
+
+            const randomExplanation = aiExplanations[Math.floor(Math.random() * aiExplanations.length)];
+            alert(`🤖 توضیح هوش مصنوعی:\n\n${randomExplanation}`);
+        }
+
+        // ==================== کتابخانه فرمول ====================
+        const formulaLibrary = [
+            {
+                category: "جبر",
+                items: [
+                    { name: "معادله درجه دوم", formula: "x = [-b ± √(b² - 4ac)] / 2a", desc: "حل معادله ax² + bx + c = 0" },
+                    { name: "دلتا", formula: "Δ = b² - 4ac", desc: "تشخیص نوع ریشه‌های معادله" },
+                    { name: "اتحاد مربع دو جمله‌ای", formula: "(a ± b)² = a² ± 2ab + b²", desc: "بسط پرکاربرد در محاسبات" },
+                    { name: "اختلاف مربع‌ها", formula: "a² - b² = (a - b)(a + b)", desc: "فاکتورگیری سریع" }
+                ]
+            },
+            {
+                category: "هندسه",
+                items: [
+                    { name: "محیط دایره", formula: "C = 2πr", desc: "محیط دایره بر حسب شعاع" },
+                    { name: "مساحت دایره", formula: "A = πr²", desc: "مساحت دایره بر حسب شعاع" },
+                    { name: "مساحت مثلث", formula: "A = (b × h) / 2", desc: "مساحت مثلث با قاعده و ارتفاع" },
+                    { name: "قضیه فیثاغورس", formula: "c² = a² + b²", desc: "رابطه اضلاع مثلث قائم" }
+                ]
+            },
+            {
+                category: "مثلثات",
+                items: [
+                    { name: "قانون سینوس‌ها", formula: "a/sin(A) = b/sin(B) = c/sin(C)", desc: "رابطه اضلاع و زوایا" },
+                    { name: "قانون کسینوس‌ها", formula: "c² = a² + b² - 2ab cos(C)", desc: "برای مثلث‌های غیرقائم" },
+                    { name: "تانژانت", formula: "tan(θ) = sin(θ) / cos(θ)", desc: "رابطه توابع مثلثاتی" }
+                ]
+            },
+            {
+                category: "آمار و احتمال",
+                items: [
+                    { name: "میانگین", formula: "x̄ = (Σx) / n", desc: "میانگین داده‌ها" },
+                    { name: "واریانس", formula: "σ² = Σ(x - x̄)² / n", desc: "پراکندگی داده‌ها" },
+                    { name: "انحراف معیار", formula: "σ = √σ²", desc: "ریشه واریانس" },
+                    { name: "احتمال", formula: "P(A) = n(A) / n(S)", desc: "احتمال وقوع رویداد A" }
+                ]
+            }
+        ];
+
+        function displayFormulaLibrary(index) {
+            const container = document.getElementById(`formulaLibrary${index}`);
+            if (!container) return;
+
+            let html = '';
+            formulaLibrary.forEach(section => {
+                html += `
+                    <div class="formula-section">
+                        <h3>${section.category}</h3>
+                        <div class="formula-grid">
+                            ${section.items.map(item => `
+                                <div class="formula-card">
+                                    <div class="formula-name">${item.name}</div>
+                                    <div class="formula-code">${item.formula}</div>
+                                    <div class="formula-desc">${item.desc}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+
+            if (levelSystem) {
+                levelSystem.grantOnce('formulaViewed', 3, 'کاوش کتابخانه فرمول', 'formula');
+            }
+        }
+
+        // داده‌های ابزارهای ریاضی
+        const mathTools = [
+            { name: 'تشخیص اول', description: 'بررسی می‌کند که آیا یک عدد اول است یا خیر' },
+            { name: 'تجزیه عوامل', description: 'عدد را به عوامل اول آن تجزیه می‌کند' },
+            { name: 'شمارش مقسوم‌علیه', description: 'تعداد و لیست تمام مقسوم‌علیه‌های یک عدد را نمایش می‌دهد' },
+            { name: 'ب م م / ک م م', description: 'بزرگترین مقسوم‌علیه مشترک و کوچکترین مضرب مشترک دو عدد را محاسبه می‌کند' },
+            { name: 'توان', description: 'نتیجه به‌توان رساندن یک عدد را محاسبه می‌کند' },
+            { name: 'فاکتوریل', description: 'فاکتوریل یک عدد را محاسبه می‌کند (تا ۱۰۰)' },
+            { name: 'رادیکال', description: 'ریشه n-ام یک عدد را محاسبه می‌کند' },
+            { name: 'دایره', description: 'محیط و مساحت دایره را بر اساس شعاع محاسبه می‌کند' },
+            { name: 'فیثاغورث', description: 'طول وتر مثلث قائم‌الزاویه را محاسبه می‌کند' },
+            { name: 'ضلع مجهول', description: 'طول ضلع مجهول مثلث قائم‌الزاویه را پیدا می‌کند' },
+            { name: 'زوایای چندضلعی', description: 'زاویه داخلی و خارجی چندضلعی منتظم را محاسبه می‌کند' },
+            { name: 'ماشین حساب', description: 'ماشین حساب پیشرفته با قابلیت استفاده از کیبورد' },
+            { name: 'تبدیل واحدها', description: 'ابرپنل تبدیل واحدهای جهانی با توضیح مرحله‌ای و خروجی همزمان' },
+            { name: 'کسر مصری', description: 'کسر را به مجموع کسرهای واحد تبدیل می‌کند' },
+            { name: 'ترکیب', description: 'ترکیب n شیء گرفته شده r تا r را محاسبه می‌کند' },
+            { name: 'مثلث خیام', description: 'سطرهای مثلث خیام-پاسکال را تولید می‌کند' },
+            { name: 'میانگین', description: 'محاسبه میانگین با فیلدهای پویا' },
+            { name: 'کتابخانه فرمول', description: 'فرمول‌های طلایی ریاضی در دسته‌های کاربردی' },
+            { name: 'تعاریف ریاضی', description: 'تعاریف جامع و کامل از مفاهیم ریاضی پایه‌ای تا پیشرفته' },
+            { name: 'تاریخچه ریاضیات', description: 'دانشمندان بزرگ ریاضی و دستاوردهای آن‌ها در جدول قابل جستجو' }
+        ];
+
+        const unitCategories = [
+            {
+                key: 'length',
+                label: 'طول',
+                icon: 'fa-ruler',
+                description: 'تبدیل واحدهای طولی SI، متریک و امپریال با نمایش گام‌ها.',
+                type: 'linear',
+                base: 'm',
+                defaultFrom: 'm',
+                defaultTo: 'cm',
+                units: [
+                    { key: 'm', label: 'متر', symbol: 'm', factor: 1 },
+                    { key: 'km', label: 'کیلومتر', symbol: 'km', factor: 1000 },
+                    { key: 'cm', label: 'سانتی‌متر', symbol: 'cm', factor: 0.01 },
+                    { key: 'mm', label: 'میلی‌متر', symbol: 'mm', factor: 0.001 },
+                    { key: 'um', label: 'میکرومتر', symbol: 'µm', factor: 0.000001 },
+                    { key: 'nm', label: 'نانومتر', symbol: 'nm', factor: 0.000000001 },
+                    { key: 'pm', label: 'پیکومتر', symbol: 'pm', factor: 0.000000000001 },
+                    { key: 'inch', label: 'اینچ', symbol: 'in', factor: 0.0254 },
+                    { key: 'ft', label: 'فوت', symbol: 'ft', factor: 0.3048 },
+                    { key: 'yd', label: 'یارد', symbol: 'yd', factor: 0.9144 },
+                    { key: 'mile', label: 'مایل', symbol: 'mi', factor: 1609.344 },
+                    { key: 'nmi', label: 'مایل دریایی', symbol: 'nmi', factor: 1852 }
+                ]
+            },
+            {
+                key: 'volume',
+                label: 'حجم / مقدار',
+                icon: 'fa-cube',
+                description: 'تبدیل واحدهای حجم از میلی‌لیتر تا متر مکعب و گالن.',
+                type: 'linear',
+                base: 'm3',
+                defaultFrom: 'l',
+                defaultTo: 'ml',
+                units: [
+                    { key: 'm3', label: 'متر مکعب', symbol: 'm³', factor: 1 },
+                    { key: 'l', label: 'لیتر', symbol: 'L', factor: 0.001 },
+                    { key: 'ml', label: 'میلی‌لیتر', symbol: 'mL', factor: 0.000001 },
+                    { key: 'cm3', label: 'سانتی‌متر مکعب', symbol: 'cm³', factor: 0.000001 },
+                    { key: 'mm3', label: 'میلی‌متر مکعب', symbol: 'mm³', factor: 0.000000001 },
+                    { key: 'km3', label: 'کیلومتر مکعب', symbol: 'km³', factor: 1000000000 },
+                    { key: 'ft3', label: 'فوت مکعب', symbol: 'ft³', factor: 0.0283168466 },
+                    { key: 'in3', label: 'اینچ مکعب', symbol: 'in³', factor: 0.000016387064 },
+                    { key: 'yd3', label: 'یارد مکعب', symbol: 'yd³', factor: 0.764554858 },
+                    { key: 'gal', label: 'گالن آمریکا', symbol: 'gal', factor: 0.003785411784 },
+                    { key: 'qt', label: 'کوارت آمریکا', symbol: 'qt', factor: 0.000946352946 },
+                    { key: 'pt', label: 'پینت آمریکا', symbol: 'pt', factor: 0.000473176473 },
+                    { key: 'cup', label: 'کاپ آمریکا', symbol: 'cup', factor: 0.0002365882365 }
+                ]
+            },
+            {
+                key: 'mass',
+                label: 'جرم / وزن',
+                icon: 'fa-weight-hanging',
+                description: 'تبدیل واحدهای جرم از میلی‌گرم تا تن و واحدهای امپریال.',
+                type: 'linear',
+                base: 'kg',
+                defaultFrom: 'kg',
+                defaultTo: 'g',
+                units: [
+                    { key: 'kg', label: 'کیلوگرم', symbol: 'kg', factor: 1 },
+                    { key: 'g', label: 'گرم', symbol: 'g', factor: 0.001 },
+                    { key: 'mg', label: 'میلی‌گرم', symbol: 'mg', factor: 0.000001 },
+                    { key: 'ug', label: 'میکروگرم', symbol: 'µg', factor: 0.000000001 },
+                    { key: 't', label: 'تن متریک', symbol: 't', factor: 1000 },
+                    { key: 'lb', label: 'پوند', symbol: 'lb', factor: 0.45359237 },
+                    { key: 'oz', label: 'اونس', symbol: 'oz', factor: 0.028349523125 },
+                    { key: 'st', label: 'استون', symbol: 'st', factor: 6.35029318 }
+                ]
+            },
+            {
+                key: 'temperature',
+                label: 'دما',
+                icon: 'fa-temperature-high',
+                description: 'تبدیل دما بین سلسیوس، فارنهایت، کلوین و رانکین.',
+                type: 'temperature',
+                base: 'K',
+                defaultFrom: 'C',
+                defaultTo: 'F',
+                units: [
+                    {
+                        key: 'C',
+                        label: 'سلسیوس',
+                        symbol: '°C',
+                        toBase: (v) => v + 273.15,
+                        fromBase: (k) => k - 273.15,
+                        toFormula: 'K = °C + 273.15',
+                        fromFormula: '°C = K − 273.15'
+                    },
+                    {
+                        key: 'F',
+                        label: 'فارنهایت',
+                        symbol: '°F',
+                        toBase: (v) => (v - 32) * 5 / 9 + 273.15,
+                        fromBase: (k) => (k - 273.15) * 9 / 5 + 32,
+                        toFormula: 'K = (°F − 32) × 5/9 + 273.15',
+                        fromFormula: '°F = (K − 273.15) × 9/5 + 32'
+                    },
+                    {
+                        key: 'K',
+                        label: 'کلوین',
+                        symbol: 'K',
+                        toBase: (v) => v,
+                        fromBase: (k) => k,
+                        toFormula: 'K = K',
+                        fromFormula: 'K = K'
+                    },
+                    {
+                        key: 'R',
+                        label: 'رانکین',
+                        symbol: '°R',
+                        toBase: (v) => v * 5 / 9,
+                        fromBase: (k) => k * 9 / 5,
+                        toFormula: 'K = °R × 5/9',
+                        fromFormula: '°R = K × 9/5'
+                    }
+                ]
+            },
+            {
+                key: 'energy',
+                label: 'انرژی',
+                icon: 'fa-bolt',
+                description: 'تبدیل واحدهای انرژی و کار با ژول، کالری و کیلووات‌ساعت.',
+                type: 'linear',
+                base: 'J',
+                defaultFrom: 'J',
+                defaultTo: 'kJ',
+                units: [
+                    { key: 'J', label: 'ژول', symbol: 'J', factor: 1 },
+                    { key: 'kJ', label: 'کیلوژول', symbol: 'kJ', factor: 1000 },
+                    { key: 'MJ', label: 'مگاژول', symbol: 'MJ', factor: 1000000 },
+                    { key: 'cal', label: 'کالری', symbol: 'cal', factor: 4.184 },
+                    { key: 'kcal', label: 'کیلوکالری', symbol: 'kcal', factor: 4184 },
+                    { key: 'Wh', label: 'وات‌ساعت', symbol: 'Wh', factor: 3600 },
+                    { key: 'kWh', label: 'کیلووات‌ساعت', symbol: 'kWh', factor: 3600000 },
+                    { key: 'eV', label: 'الکترون‌ولت', symbol: 'eV', factor: 0.0000000000000000001602176634 },
+                    { key: 'BTU', label: 'بی‌تی‌یو', symbol: 'BTU', factor: 1055.05585 }
+                ]
+            },
+            {
+                key: 'area',
+                label: 'مساحت / محیط',
+                icon: 'fa-vector-square',
+                description: 'تبدیل واحدهای مساحت از میلی‌متر مربع تا هکتار و آکر.',
+                type: 'linear',
+                base: 'm2',
+                defaultFrom: 'm2',
+                defaultTo: 'cm2',
+                units: [
+                    { key: 'm2', label: 'متر مربع', symbol: 'm²', factor: 1 },
+                    { key: 'km2', label: 'کیلومتر مربع', symbol: 'km²', factor: 1000000 },
+                    { key: 'cm2', label: 'سانتی‌متر مربع', symbol: 'cm²', factor: 0.0001 },
+                    { key: 'mm2', label: 'میلی‌متر مربع', symbol: 'mm²', factor: 0.000001 },
+                    { key: 'ha', label: 'هکتار', symbol: 'ha', factor: 10000 },
+                    { key: 'acre', label: 'آکر', symbol: 'acre', factor: 4046.8564224 },
+                    { key: 'ft2', label: 'فوت مربع', symbol: 'ft²', factor: 0.09290304 },
+                    { key: 'in2', label: 'اینچ مربع', symbol: 'in²', factor: 0.00064516 },
+                    { key: 'yd2', label: 'یارد مربع', symbol: 'yd²', factor: 0.83612736 }
+                ]
+            },
+            {
+                key: 'speed',
+                label: 'سرعت',
+                icon: 'fa-gauge-high',
+                description: 'تبدیل واحدهای سرعت برای حرکت و حمل‌ونقل.',
+                type: 'linear',
+                base: 'mps',
+                defaultFrom: 'kmh',
+                defaultTo: 'mps',
+                units: [
+                    { key: 'mps', label: 'متر بر ثانیه', symbol: 'm/s', factor: 1 },
+                    { key: 'kmh', label: 'کیلومتر بر ساعت', symbol: 'km/h', factor: 0.2777777778 },
+                    { key: 'mph', label: 'مایل بر ساعت', symbol: 'mph', factor: 0.44704 },
+                    { key: 'knot', label: 'گره دریایی', symbol: 'kn', factor: 0.514444444 },
+                    { key: 'fps', label: 'فوت بر ثانیه', symbol: 'ft/s', factor: 0.3048 }
+                ]
+            },
+            {
+                key: 'time',
+                label: 'زمان',
+                icon: 'fa-clock',
+                description: 'تبدیل واحدهای زمان از نانوثانیه تا سال.',
+                type: 'linear',
+                base: 's',
+                defaultFrom: 's',
+                defaultTo: 'min',
+                units: [
+                    { key: 's', label: 'ثانیه', symbol: 's', factor: 1 },
+                    { key: 'ms', label: 'میلی‌ثانیه', symbol: 'ms', factor: 0.001 },
+                    { key: 'us', label: 'میکروثانیه', symbol: 'µs', factor: 0.000001 },
+                    { key: 'ns', label: 'نانوثانیه', symbol: 'ns', factor: 0.000000001 },
+                    { key: 'min', label: 'دقیقه', symbol: 'min', factor: 60 },
+                    { key: 'h', label: 'ساعت', symbol: 'h', factor: 3600 },
+                    { key: 'day', label: 'روز', symbol: 'd', factor: 86400 },
+                    { key: 'week', label: 'هفته', symbol: 'wk', factor: 604800 },
+                    { key: 'year', label: 'سال (۳۶۵٫۲۵ روز)', symbol: 'yr', factor: 31557600 }
+                ]
+            },
+            {
+                key: 'power',
+                label: 'قدرت',
+                icon: 'fa-plug',
+                description: 'تبدیل واحدهای توان مانند وات، اسب بخار و بی‌تی‌یو بر ساعت.',
+                type: 'linear',
+                base: 'W',
+                defaultFrom: 'W',
+                defaultTo: 'kW',
+                units: [
+                    { key: 'W', label: 'وات', symbol: 'W', factor: 1 },
+                    { key: 'kW', label: 'کیلووات', symbol: 'kW', factor: 1000 },
+                    { key: 'MW', label: 'مگاوات', symbol: 'MW', factor: 1000000 },
+                    { key: 'hp', label: 'اسب بخار (مکانیکی)', symbol: 'hp', factor: 745.699872 },
+                    { key: 'PS', label: 'اسب بخار متریک', symbol: 'PS', factor: 735.49875 },
+                    { key: 'BTUhr', label: 'بی‌تی‌یو بر ساعت', symbol: 'BTU/h', factor: 0.29307107 }
+                ]
+            },
+            {
+                key: 'data',
+                label: 'اطلاعات',
+                icon: 'fa-database',
+                description: 'تبدیل واحدهای داده با استاندارد ده‌دهی و دودویی.',
+                type: 'linear',
+                base: 'B',
+                defaultFrom: 'MB',
+                defaultTo: 'GB',
+                units: [
+                    { key: 'bit', label: 'بیت', symbol: 'b', factor: 0.125 },
+                    { key: 'B', label: 'بایت', symbol: 'B', factor: 1 },
+                    { key: 'KB', label: 'کیلوبایت (۱۰³)', symbol: 'KB', factor: 1000 },
+                    { key: 'MB', label: 'مگابایت (۱۰⁶)', symbol: 'MB', factor: 1000000 },
+                    { key: 'GB', label: 'گیگابایت (۱۰⁹)', symbol: 'GB', factor: 1000000000 },
+                    { key: 'TB', label: 'ترابایت (۱۰¹²)', symbol: 'TB', factor: 1000000000000 },
+                    { key: 'KiB', label: 'کیبی‌بایت (۲¹⁰)', symbol: 'KiB', factor: 1024 },
+                    { key: 'MiB', label: 'مبی‌بایت (۲²⁰)', symbol: 'MiB', factor: 1048576 },
+                    { key: 'GiB', label: 'گیبی‌بایت (۲³⁰)', symbol: 'GiB', factor: 1073741824 },
+                    { key: 'TiB', label: 'تبی‌بایت (۲⁴⁰)', symbol: 'TiB', factor: 1099511627776 }
+                ]
+            },
+            {
+                key: 'pressure',
+                label: 'فشار',
+                icon: 'fa-compress',
+                description: 'تبدیل واحدهای فشار برای مهندسی و علوم.',
+                type: 'linear',
+                base: 'Pa',
+                defaultFrom: 'Pa',
+                defaultTo: 'bar',
+                units: [
+                    { key: 'Pa', label: 'پاسکال', symbol: 'Pa', factor: 1 },
+                    { key: 'kPa', label: 'کیلوپاسکال', symbol: 'kPa', factor: 1000 },
+                    { key: 'MPa', label: 'مگاپاسکال', symbol: 'MPa', factor: 1000000 },
+                    { key: 'bar', label: 'بار', symbol: 'bar', factor: 100000 },
+                    { key: 'atm', label: 'اتمسفر', symbol: 'atm', factor: 101325 },
+                    { key: 'psi', label: 'پی‌اس‌آی', symbol: 'psi', factor: 6894.757293168 },
+                    { key: 'mmHg', label: 'میلی‌متر جیوه', symbol: 'mmHg', factor: 133.322387415 },
+                    { key: 'torr', label: 'تور', symbol: 'torr', factor: 133.322368 },
+                    { key: 'inHg', label: 'اینچ جیوه', symbol: 'inHg', factor: 3386.38815789 }
+                ]
+            }
+        ];
+
+        // داده‌های دانشمندان ریاضی
+        const mathematicians = [
+            {name: 'تالس میلِتوسی', era: 'حدود ۶۲۴–۵۴۶ پ.م', contributions: 'آغازگر فلسفه و ریاضیات اثباتی، اولین کسی که از استدلال منطقی در هندسه استفاده کرد.'},
+            {name: 'فیثاغورس ساموسی', era: 'حدود ۵۷۰–۴۹۵ پ.م', contributions: 'قضیه فیثاغورس، نظریه اعداد، کشف اعداد گنگ، و بنیان‌گذاری مکتب فیثاغوری.'},
+            {name: 'اقلیدس اسکندرانی', era: 'حدود ۳۰۰ پ.م', contributions: 'هندسه اقلیدسی، نویسنده کتاب «اصول» (Elements)، بنیان‌گذار روش اصل‌موضوعی در ریاضیات.'},
+            {name: 'ارشمیدس سیراکوزی', era: 'حدود ۲۸۷–۲۱۲ پ.م', contributions: 'پایه‌گذار حساب انتگرال، اصول هیدرواستاتیک، روش افنا، و اختراع ماشین‌های مکانیکی.'},
+            {name: 'اپولونیوس پرگایی', era: 'حدود ۲۶۲–۱۹۰ پ.م', contributions: 'مقاطع مخروطی، هندسه پیشرفته، و حل مسائل هندسی پیچیده.'},
+            {name: 'لیو هویی', era: 'حدود ۲۲۰–۲۸۰ م', contributions: 'محاسبه دقیق عدد پی، تفسیر کتاب نه‌فصل ریاضی، توسعه هندسه اندازه‌گیری، و پیشرفت در جبر چین باستان.'},
+            {name: 'هیپاتیا اسکندرانی', era: 'حدود ۳۶۰–۴۱۵ م', contributions: 'اولین ریاضیدان زن ثبت شده در تاریخ، تفسیر و شرح آثار ریاضی یونان باستان، تدریس فلسفه و ریاضیات.'},
+            {name: 'آریابهاتا', era: '۴۷۶–۵۵۰ م', contributions: 'تعریف عدد صفر، محاسبه عدد پی، ارائه سیستم ارزش مکانی دهدهی، و پیشرفت در مثلثات و جبر.'},
+            {name: 'برهمگوپتا', era: '۵۹۸–۶۶۸ م', contributions: 'قوانین عملیات با عدد صفر و اعداد منفی، فرمول مساحت چهارضلعی محاطی، و پیشرفت در جبر و نجوم.'},
+            {name: 'محمد بن موسی خوارزمی', era: 'حدود ۷۸۰–۸۵۰ م', contributions: 'پدر جبر، معرفی سیستم اعشاری، ابداع الگوریتم‌های ریاضی، و پایه‌گذاری جبر به عنوان شاخه‌ای مستقل.'},
+            {name: 'عمر خیام نیشابوری', era: '۱۰۴۸–۱۱۳۱ م', contributions: 'حل هندسی معادلات درجه سوم، تقویم جلالی، هندسه جبری، و پیشگامی در هندسه نااقلیدسی.'},
+            {name: 'لئوناردو فیبوناچی', era: 'حدود ۱۱۷۰–۱۲۴۰ م', contributions: 'معرفی سیستم اعداد عربی-هندی به اروپا، دنباله فیبوناچی، و پایه‌گذاری ریاضیات تجاری مدرن.'},
+            {name: 'بهاسکارا دوم', era: '۱۱۱۴–۱۱۸۵ م', contributions: 'حساب دیفرانسیل اولیه، قوانین حساب بی‌نهایت، سیستم ارزش مکانی دهدهی، و پیشرفت در جبر و مثلثات.'},
+            {name: 'جرولامو کاردانو', era: '۱۵۰۱–۱۵۷۶ م', contributions: 'اعداد مختلط، حل معادلات درجه سوم و چهارم، نظریه احتمال اولیه، و پزشکی.'},
+            {name: 'فرانسوا ویت', era: '۱۵۴۰–۱۶۰۳ م', contributions: 'پدر جبر جدید، نشانه‌گذاری جبری، استفاده از حروف برای کمیت‌های شناخته شده و ناشناخته.'},
+            {name: 'جان نپر', era: '۱۵۵۰–۱۶۱۷ م', contributions: 'ابداع لگاریتم، مهره‌های نپر (ابزار محاسباتی)، پیشرفت در مثلثات کروی.'},
+            {name: 'گالیله گالیله', era: '۱۵۶۴–۱۶۴۲ م', contributions: 'روش علمی، سینماتیک، ستاره‌شناسی رصدی، و دفاع از مدل خورشیدمرکزی.'},
+            {name: 'یوهان کپلر', era: '۱۵۷۱–۱۶۳۰ م', contributions: 'قوانین حرکت سیاره‌ای، بینش‌های عمیق در نجوم و هندسه.'},
+            {name: 'رنه دکارت', era: '۱۵۹۶–۱۶۵۰ م', contributions: 'هندسه تحلیلی، سیستم مختصات دکارتی، فلسفه خردگرایی.'},
+            {name: 'پیر دو فرما', era: '۱۶۰۷–۱۶۶۵ م', contributions: 'قضیه آخر فرما، نظریه اعداد مدرن، حساب دیفرانسیل اولیه، اصل فرما در نورشناسی.'},
+            {name: 'بلز پاسکال', era: '۱۶۲۳–۱۶۶۲ م', contributions: 'نظریه احتمال، مثلث پاسکال، ماشین حساب مکانیکی، فشارسنج.'},
+            {name: 'جان والیس', era: '۱۶۱۶–۱۷۰۳ م', contributions: 'نماد بینهایت (∞)، پیشرفت در حسابان، اعداد موهومی، و جبر.'},
+            {name: 'ایزاک بارو', era: '۱۶۳۰–۱۶۷۷ م', contributions: 'پیش‌درآمد حسابان، قضیه اساسی حسابان، و استاد نیوتن.'},
+            {name: 'کریستیان هویگنس', era: '۱۶۲۹–۱۶۹۵ م', contributions: 'نظریه موجی نور، پاندول ساعت، نظریه احتمال، و کشف قمر تیتان.'},
+            {name: 'ایزاک نیوتن', era: '۱۶۴۲–۱۷۲۷ م', contributions: 'حسابان، قوانین حرکت و گرانش، نورشناسی، و اصول ریاضی فلسفه طبیعی.'},
+            {name: 'گوتفرید لایبنیتس', era: '۱۶۴۶–۱۷۱۶ م', contributions: 'حسابان، نمادگذاری ریاضی، منطق نمادین، فلسفه و مونادولوژی.'},
+            {name: 'برادران برنولی', era: 'ژاکوب: ۱۶۵۴–۱۷۰۵، یوهان: ۱۶۶۷–۱۷۴۸ م', contributions: 'حسابان، نظریه احتمال، معادلات دیفرانسیل، مکانیک و توسعه ریاضیات در سوئیس.'},
+            {name: 'لئونارد اویلر', era: '۱۷۰۷–۱۷۸۳ م', contributions: 'تحلیل ریاضی، نمادگذاری، نظریه اعداد، توپولوژی، و کاربردهای ریاضی در فیزیک.'},
+            {name: 'ژان لو رون دالامبر', era: '۱۷۱۷–۱۷۸۳ م', contributions: 'معادلات دیفرانسیل با مشتقات جزئی، دینامیک سیالات، و فلسفه روشنگری.'},
+            {name: 'ژوزف-لویی لاگرانژ', era: '۱۷۳۶–۱۸۱۳ م', contributions: 'مکانیک تحلیلی، نظریه اعداد، جبر، و حساب تغییرات.'},
+            {name: 'پیر-سیمون لاپلاس', era: '۱۷۴۹–۱۸۲۷ م', contributions: 'مکانیک سماوی، نظریه احتمال، معادلات دیفرانسیل، و تبدیل لاپلاس.'},
+            {name: 'آدرین-ماری لژاندر', era: '۱۷۵۲–۱۸۳۳ م', contributions: 'نظریه اعداد، توابع بیضوی، هندسه، روش کمترین مربعات، و توابع لژاندر.'},
+            {name: 'ژان-باپتیست فوریه', era: '۱۷۶۸–۱۸۳۰ م', contributions: 'سری‌های فوریه، تحلیل هارمونیک، معادلات دیفرانسیل با مشتقات جزئی، و تئوری انتقال حرارت.'},
+            {name: 'کارل فریدریش گاوس', era: '۱۷۷۷–۱۸۵۵ م', contributions: 'نظریه اعداد، هندسه، آمار، نجوم، فیزیک ریاضی، و «شاهزاده ریاضیدانان».'},
+            {name: 'سیمون دنی پواسون', era: '۱۷۸۱–۱۸۴۰ م', contributions: 'معادلات دیفرانسیل، نظریه احتمال، مکانیک، فیزیک ریاضی، و توزیع پواسون.'},
+            {name: 'آگوستین-لویی کوشی', era: '۱۷۸۹–۱۸۵۷ م', contributions: 'آنالیز ریاضی، نظریه توابع مختلط، الاستیسیته، و روش‌های ریاضی در فیزیک.'},
+            {name: 'نیکلای لوباچفسکی', era: '۱۷۹۲–۱۸۵۶ م', contributions: 'هندسه نااقلیدسی، هندسه هذلولوی، و بنیان‌گذاری هندسه‌های نااقلیدسی.'},
+            {name: 'ویلیام روآن همیلتون', era: '۱۸۰۵–۱۸۶۵ م', contributions: 'مکانیک همیلتونی، جبر، کواریون‌ها، و نظریه سیستم‌های دینامیکی.'},
+            {name: 'هرمان گراسمن', era: '۱۸۰۹–۱۸۷۷ م', contributions: 'جبر خطی مدرن، جبر خارجی، آنالیز برداری، و هندسه n بعدی.'},
+            {name: 'جورج بول', era: '۱۸۱۵–۱۸۶۴ م', contributions: 'جبر بولی، منطق ریاضی، پایه‌گذاری علوم کامپیوتر نظری، و جبر نمادین.'},
+            {name: 'برنهارت ریمان', era: '۱۸۲۶–۱۸۶۶ م', contributions: 'هندسه ریمانی، آنالیز مختلط، نظریه اعداد، توپولوژی، و انتگرال ریمان.'},
+            {name: 'لئوپلد کرونکر', era: '۱۸۲۳–۱۸۹۱ م', contributions: 'نظریه اعداد، جبر، فلسفه ساختگرایی در ریاضیات، و نماد دلتای کرونکر.'},
+            {name: 'کارل وایرشتراس', era: '۱۸۱۵–۱۸۹۷ م', contributions: 'استانداردسازی آنالیز واقعی، تعریف ε-δ، تابع پیوسته اما غیرقابل مشتق‌گیری، و نظریه توابع تحلیلی.'},
+            {name: 'پیاف نوسی باتیست چبیشف', era: '۱۸۲۱–۱۸۹۴ م', contributions: 'نظریه تقریب، نظریه احتمال، مکانیزم‌های مکانیکی، و چندجمله‌ای‌های چبیشف.'},
+            {name: 'آرتور کیلی', era: '۱۸۲۱–۱۸۹۵ م', contributions: 'جبر ماتریسی، نظریه گروه‌ها، هندسه n بعدی، و قضیه کیلی-همیلتون.'},
+            {name: 'چارلز باببج', era: '۱۷۹۱–۱۸۷۱ م', contributions: 'ماشین‌های محاسباتی مکانیکی، تفاوت‌یاب و موتور تحلیلی، پدر علوم کامپیوتر نظری.'},
+            {name: 'آدا لاولیس', era: '۱۸۱۵–۱۸۵۲ م', contributions: 'اولین برنامه‌نویس کامپیوتر، تفسیر و گسترش کارهای باببج، پیش‌بینی قابلیت‌های کامپیوتر.'},
+            {name: 'ژول آنری پوانکاره', era: '۱۸۵۴–۱۹۱۲ م', contributions: 'توپولوژی جبری، سیستم‌های دینامیکی، نظریه آشوب، نسبیت خاص، و فلسفه علم.'},
+            {name: 'گیورگ کانتور', era: '۱۸۴۵–۱۹۱۸ م', contributions: 'نظریه مجموعه‌ها، اعداد کاردینال و ترتیبی نامتناهی، فرضیه پیوستار، و پارادوکس‌های بینهایت.'},
+            {name: 'سوفیا کوالفسکایا', era: '۱۸۵۰–۱۸۹۱ م', contributions: 'معادلات دیفرانسیل با مشتقات جزئی، مکانیک، و اولین استاد زن در اروپای شمالی.'},
+            {name: 'گوتلوب فرگه', era: '۱۸۴۸–۱۹۲۵ م', contributions: 'بنیان‌گذار منطق مدرن و فلسفه تحلیلی. ارائه سیستم صوری برای منطق ریاضی در کتاب «مفهوم‌نگاشت».'},
+            {name: 'دیوید هیلبرت', era: '۱۸۶۲–۱۹۴۳ م', contributions: 'یکی از تأثیرگذارترین ریاضیدانان قرن بیستم. پایه‌گذاری نظریه‌های ناوردا، فضای هیلبرت، و ارائه ۲۳ مسئله معروف.'},
+            {name: 'سرینیواسا رامانوجان', era: '۱۸۸۷–۱۹۲۰ م', contributions: 'نظریه اعداد، توابع ماژولار، سری‌های نامتناهی، هویت‌های ریاضی شگفت‌انگیز و اعداد پارتیشن.'},
+            {name: 'امی نوتر', era: '۱۸۸۲–۱۹۳۵ م', contributions: 'جبر انتزاعی، قضیه نوتر (پیوند تقارن‌ها و قوانین بقا)، نظریه حلقه‌ها و جبرهای ناهموردا.'},
+            {name: 'جان فون نویمان', era: '۱۹۰۳–۱۹۵۷ م', contributions: 'معماری کامپیوتر، نظریه بازی‌ها، مکانیک کوانتومی ریاضی، آنالیز تابعی و اتوماتای سلولی.'},
+            {name: 'کورت گودل', era: '۱۹۰۶–۱۹۷۸ م', contributions: 'قضایای ناتمامیت، منطق ریاضی، نظریه مجموعه‌ها، و راه‌حل‌های جهانی در نسبیت عام.'},
+            {name: 'آلن تورینگ', era: '۱۹۱۲–۱۹۵۴ م', contributions: 'ماشین تورینگ، رمزگشایی انیگما، تست تورینگ، و پایه‌گذاری علوم کامپیوتر نظری.'},
+            {name: 'آندره کولموگوروف', era: '۱۹۰۳–۱۹۸۷ م', contributions: 'بنیان‌گذاری نظریه احتمال مدرن، نظریه پیچیدگی، آنالیز فوریه، و توپولوژی.'},
+            {name: 'استفان باناخ', era: '۱۸۹۲–۱۹۴۵ م', contributions: 'آنالیز تابعی، فضاهای باناخ، جبر نرم‌دار، و قضایای نقطه ثابت.'},
+            {name: 'امیل آرتین', era: '۱۸۹۸–۱۹۶۲ م', contributions: 'نظریه گالوا، نظریه میدان‌های جبری اعداد، جبر همولوژی، و نظریه گره‌ها.'},
+            {name: 'هرمان ویل', era: '۱۸۸۵–۱۹۵۵ م', contributions: 'نظریه نمایش گروه‌ها، هندسه ریمانی، نسبیت عام، و مکانیک کوانتومی.'},
+            {name: 'الکساندر گروتندیک', era: '۱۹۲۸–۲۰۱۴ م', contributions: 'هندسه جبری مدرن، نظریه توپوس، کوهومولوژی اتیل، و نظریه مدارهای فرمال.'},
+            {name: 'پاول اردش', era: '۱۹۱۳–۱۹۹۶ م', contributions: 'ترکیبیات، نظریه اعداد، نظریه گراف، نظریه احتمال و آنالیز.'},
+            {name: 'کلود شانون', era: '۱۹۱۶–۲۰۰۱ م', contributions: 'بنیان‌گذاری نظریه اطلاعات، طراحی مدارهای دیجیتال با جبر بولی، و پایه‌گذاری رمزنگاری مدرن.'},
+            {name: 'جان نش', era: '۱۹۲۸–۲۰۱۵ م', contributions: 'تعادل نش در نظریه بازی‌ها، قضایای جاسازی در هندسه ریمانی، و حل مسائل هیلبرت.'},
+            {name: 'آندره ویل', era: '۱۹۰۶–۱۹۹۸ م', contributions: 'حدس‌های ویل در هندسه جبری، نظریه اعداد، و بنیان‌گذاری گروه بورباکی.'},
+            {name: 'سالومون لفشتس', era: '۱۸۹۴–۱۹۷۲ م', contributions: 'توپولوژی جبری، هندسه جبری، نظریه نقطه ثابت، و سیستم‌های دینامیکی.'},
+            {name: 'هنری لبگ', era: '۱۸۷۵–۱۹۴۱ م', contributions: 'انتگرال لبگ، نظریه اندازه، آنالیز ریاضی، و توپولوژی.'},
+            {name: 'برتراند راسل', era: '۱۸۷۲–۱۹۷۰ م', contributions: 'منطق ریاضی، فلسفه تحلیلی، پارادوکس راسل، و مبانی ریاضیات.'},
+            {name: 'ژان-پیر سر', era: 'متولد ۱۹۲۶ م', contributions: 'توپولوژی جبری، هندسه جبری، نظریه اعداد، و جبر جابجایی. برنده مدال فیلدز در سال ۱۹۵۴.'},
+            {name: 'جان کانوی', era: '۱۹۳۷–۲۰۲۰ م', contributions: 'نظریه گروه‌ها، ترکیبیات، نظریه اعداد، و بازی‌های ریاضی.'},
+            {name: 'مایکل عطیه', era: '۱۹۲۹–۲۰۱۹ م', contributions: 'هندسه، توپولوژی، فیزیک ریاضی، و شاخص قضایا. برنده مدال فیلدز در سال ۱۹۶۶.'},
+            {name: 'پیر دلین', era: 'متولد ۱۹۴۴ م', contributions: 'هندسه جبری، نظریه اعداد، و نظریه نمایش. برنده مدال فیلدز در سال ۱۹۷۸.'},
+            {name: 'گریگوری مارگولیس', era: 'متولد ۱۹۴۶ م', contributions: 'نظریه ارگودیک، گروه‌های لی، شبکه‌ها در گروه‌های لی، و نظریه اعداد. برنده مدال فیلدز در سال ۱۹۷۸.'},
+            {name: 'ترنس تائو', era: 'متولد ۱۹۷۵ م', contributions: 'آنالیز هارمونیک، نظریه اعداد، معادلات دیفرانسیل با مشتقات جزئی، و ترکیبیات. برنده مدال فیلدز در سال ۲۰۰۶.'},
+            {name: 'مریم میرزاخانی', era: '۱۹۷۷–۲۰۱۷ م', contributions: 'هندسه سطوح ریمانی، نظریه تایشمولر، سیستم‌های دینامیکی هذلولوی. اولین زن برنده مدال فیلدز در سال ۲۰۱۴.'},
+            {name: 'اندرو وایلز', era: 'متولد ۱۹۵۳ م', contributions: 'نظریه اعداد، اثبات قضیه آخر فرما، و نظریه اعداد هندسی.'},
+            {name: 'ادوارد ویتن', era: 'متولد ۱۹۵۱ م', contributions: 'فیزیک ریاضی، نظریه ریسمان، توپولوژی، و نظریه میدان‌های کوانتومی. برنده مدال فیلدز در سال ۱۹۹۰.'},
+            {name: 'ولادیمیر آرنولد', era: '۱۹۳۷–۲۰۱۰ م', contributions: 'سیستم‌های دینامیکی، معادلات دیفرانسیل، توپولوژی، و مکانیک کلاسیک.'}
+        ];
+
+        // تعاریف ریاضی
+        const mathDefinitions = [
+            {
+                category: "مفاهیم پایه",
+                description: "این بخش شامل مفاهیم اصلی و بنیادی ریاضیات است که درک آن‌ها برای پیشرفت در سایر مباحث ضروری است.",
+                definitions: [
+                    {
+                        term: "ریاضیات",
+                        definition: "علم مطالعه کمیت‌ها، ساختارها، فضا و تغییرات. ریاضیات زبانی جهانی برای توصیف الگوها و روابط در طبیعت است.",
+                        example: "(مثل: فیزیک، مهندسی، اقتصاد و علوم کامپیوتر)"
+                    },
+                    {
+                        term: "عدد",
+                        definition: "یک مفهوم برای نشان دادن مقدار، ترتیب یا اندازه. اعداد انواع مختلفی دارند (طبیعی، صحیح، گویا، حقیقی، مختلط).",
+                        example: "(مثال: ۱، ۲، ۳... اعداد طبیعی هستند.)"
+                    },
+                    {
+                        term: "مجموعه",
+                        definition: "گردایه‌ای از اشیاء (مثل اعداد، حروف، یا حتی دیگر مجموعه‌ها). مجموعه‌ها مثل جعبه هستند که چیزها را در آن قرار می‌دهیم.",
+                        example: "(مثال: مجموعه اعداد زوج کوچکتر از ۱۰: {۲، ۴، ۶، ۸})"
+                    }
+                ]
+            },
+            {
+                category: "جبر",
+                description: "جبر به ما کمک می‌کند تا با استفاده از حروف و نمادها، مسائل ریاضی را حل کنیم و روابط بین کمیت‌ها را درک کنیم.",
+                definitions: [
+                    {
+                        term: "متغیر",
+                        definition: "یک حرف (مثل x، y، z) که به جای یک عدد ناشناخته استفاده می‌شود.",
+                        example: "(مثال: در ۲x + ۳ = ۵، x متغیر است.)"
+                    },
+                    {
+                        term: "معادله",
+                        definition: "یک گزاره ریاضی که نشان می‌دهد دو طرف آن برابر هستند.",
+                        example: "(مثال: x + ۲ = ۵ یک معادله است.)"
+                    },
+                    {
+                        term: "تابع",
+                        definition: "یک ماشین ریاضی که یک عدد را می‌گیرد و یک عدد دیگر را به عنوان خروجی می‌دهد.",
+                        example: "(مثال: f(x) = x + ۱ یک تابع است که به هر عددی ۱ اضافه می‌کند.)"
+                    },
+                    {
+                        term: "چندجمله‌ای",
+                        definition: "عبارتی که از چند جمله (عدد، متغیر، یا حاصل ضرب عدد و متغیر) تشکیل شده است.",
+                        example: "(مثال: ۳x² + ۲x - ۱ یک چندجمله‌ای است.)"
+                    }
+                ]
+            },
+            {
+                category: "هندسه",
+                description: "هندسه به ما کمک می‌کند تا شکل‌ها و فضا را درک کنیم. ما با اشکال مختلف، اندازه‌گیری‌ها و روابط بین آن‌ها کار می‌کنیم.",
+                definitions: [
+                    {
+                        term: "نقطه",
+                        definition: "یک مکان دقیق در فضا.",
+                        example: "(مثل: یک نقطه روی نقشه)"
+                    },
+                    {
+                        term: "خط",
+                        definition: "یک مسیر مستقیم و بی‌انتها.",
+                        example: "(مثل: یک جاده)"
+                    },
+                    {
+                        term: "زاویه",
+                        definition: "فضایی که دو خط یا سطح در یک نقطه تشکیل می‌دهند.",
+                        example: "(مثل: گوشه یک اتاق)"
+                    },
+                    {
+                        term: "مثلث",
+                        definition: "یک شکل هندسی با سه ضلع و سه زاویه.",
+                        example: "(مثل: یک تکه پیتزا)"
+                    }
+                ]
+            },
+            {
+                category: "آمار و احتمال",
+                description: "آمار و احتمال به ما کمک می‌کنند تا داده‌ها را جمع‌آوری، سازماندهی، تجزیه و تحلیل کنیم و پیش‌بینی‌هایی انجام دهیم.",
+                definitions: [
+                    {
+                        term: "آمار",
+                        definition: "علم جمع‌آوری و تحلیل داده‌ها."
+                    },
+                    {
+                        term: "احتمال",
+                        definition: "شاخه‌ای از ریاضیات که به بررسی شانس و احتمال وقوع رویدادها می‌پردازد."
+                    }
+                ]
+            },
+            {
+                category: "هندسه تحلیلی",
+                description: "هندسه تحلیلی از جبر برای بررسی اشکال هندسی استفاده می‌کند و به ما کمک می‌کند تا آن‌ها را با معادلات توصیف کنیم.",
+                definitions: [
+                    {
+                        term: "صفحه مختصات",
+                        definition: "یک صفحه که با دو خط عمود بر هم (x و y) ایجاد می‌شود."
+                    },
+                    {
+                        term: "معادله خط",
+                        definition: "یک معادله که یک خط را در صفحه مختصات نشان می‌دهد."
+                    }
+                ]
+            }
+        ];
+
+        // ایجاد تب‌ها و محتوای آنها
+        const tabsContainer = document.getElementById('tabsContainer');
+        const tabContents = document.getElementById('tabContents');
+
+        mathTools.forEach((tool, index) => {
+            const tab = document.createElement('button');
+            tab.className = 'tab' + (index === 0 ? ' active' : '');
+            tab.textContent = tool.name;
+            tab.setAttribute('aria-selected', index === 0);
+            tab.onclick = () => switchTab(index);
+            tabsContainer.appendChild(tab);
+
+            const content = document.createElement('div');
+            content.className = 'tab-content' + (index === 0 ? ' active' : '');
+            content.id = 'tab' + index;
+            content.innerHTML = `
+                <div class="tool-description">
+                    <h3>${tool.name}</h3>
+                    <p>${tool.description}</p>
+                </div>
+                ${createToolContent(tool.name, index)}
+            `;
+            tabContents.appendChild(content);
+        });
+
+        // تابع تغییر تب
+        function switchTab(index) {
+            document.querySelectorAll('.tab').forEach((tab, i) => {
+                tab.classList.toggle('active', i === index);
+                tab.setAttribute('aria-selected', i === index);
+            });
+            document.querySelectorAll('.tab-content').forEach((content, i) => {
+                content.classList.toggle('active', i === index);
+            });
+            
+            // بارگذاری محتوای خاص
+            if (mathTools[index].name === 'تاریخچه ریاضیات') {
+                setTimeout(() => displayMathematiciansTable(index), 100);
+            } else if (mathTools[index].name === 'تعاریف ریاضی') {
+                setTimeout(() => displayDefinitions(index), 100);
+            } else if (mathTools[index].name === 'کتابخانه فرمول') {
+                setTimeout(() => displayFormulaLibrary(index), 100);
+            } else if (mathTools[index].name === 'میانگین') {
+                setTimeout(() => initializeNumberFields(index), 100);
+            }
+        }
+
+        // ایجاد محتوای هر ابزار
+        function createToolContent(toolName, index) {
+            const contents = {
+                'تشخیص اول': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label for="primeInput${index}">عدد را وارد کنید:</label>
+                                <input type="number" id="primeInput${index}" min="2" placeholder="مثلا: 17">
+                            </div>
+                            <div class="button-group">
+                                <button onclick="checkPrime(${index})">بررسی اول بودن</button>
+                                <button class="btn-secondary" onclick="clearInput('primeInput${index}', 'primeResult${index}')">پاک کردن</button>
+                            </div>
+                        </div>
+                        <div class="result" id="primeResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+                
+                'تجزیه عوامل': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label for="factorInput${index}">عدد را وارد کنید:</label>
+                                <input type="number" id="factorInput${index}" min="2" placeholder="مثلا: 36">
+                            </div>
+                            <div class="button-group">
+                                <button onclick="factorize(${index})">تجزیه عوامل اول</button>
+                                <button class="btn-secondary" onclick="clearInput('factorInput${index}', 'factorResult${index}')">پاک کردن</button>
+                            </div>
+                        </div>
+                        <div class="result" id="factorResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+                
+                'شمارش مقسوم‌علیه': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label for="divisorInput${index}">عدد را وارد کنید:</label>
+                                <input type="number" id="divisorInput${index}" min="1" placeholder="مثلا: 12">
+                            </div>
+                            <div class="button-group">
+                                <button onclick="countDivisors(${index})">شمارش مقسوم‌علیه‌ها</button>
+                                <button class="btn-secondary" onclick="clearInput('divisorInput${index}', 'divisorResult${index}')">پاک کردن</button>
+                            </div>
+                        </div>
+                        <div class="result" id="divisorResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+                
+                'ب م م / ک م م': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label for="num1${index}">عدد اول:</label>
+                                <input type="number" id="num1${index}" placeholder="مثلا: 12">
+                            </div>
+                            <div class="input-group">
+                                <label for="num2${index}">عدد دوم:</label>
+                                <input type="number" id="num2${index}" placeholder="مثلا: 18">
+                            </div>
+                            <div class="button-group">
+                                <button onclick="calculateGCDLCM(${index})">محاسبه ب م م و ک م م</button>
+                                <button class="btn-secondary" onclick="clearInputs(['num1${index}', 'num2${index}'], 'gcdlcmResult${index}')">پاک کردن</button>
+                            </div>
+                        </div>
+                        <div class="result" id="gcdlcmResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+                
+                'توان': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label for="baseInput${index}">پایه:</label>
+                                <input type="number" id="baseInput${index}" placeholder="مثلا: 2">
+                            </div>
+                            <div class="input-group">
+                                <label for="exponentInput${index}">توان:</label>
+                                <input type="number" id="exponentInput${index}" placeholder="مثلا: 3">
+                            </div>
+                            <div class="button-group">
+                                <button onclick="calculatePower(${index})">محاسبه توان</button>
+                                <button class="btn-secondary" onclick="clearInputs(['baseInput${index}', 'exponentInput${index}'], 'powerResult${index}')">پاک کردن</button>
+                            </div>
+                        </div>
+                        <div class="result" id="powerResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+                
+                'فاکتوریل': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label for="factorialInput${index}">عدد را وارد کنید:</label>
+                                <input type="number" id="factorialInput${index}" min="0" max="100" placeholder="مثلا: 5">
+                            </div>
+                            <div class="button-group">
+                                <button onclick="calculateFactorial(${index})">محاسبه فاکتوریل</button>
+                                <button class="btn-secondary" onclick="clearInput('factorialInput${index}', 'factorialResult${index}')">پاک کردن</button>
+                            </div>
+                        </div>
+                        <div class="result" id="factorialResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+                
+                'رادیکال': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label for="radicandInput${index}">عدد زیر رادیکال:</label>
+                                <input type="number" id="radicandInput${index}" min="0" placeholder="مثلا: 16">
+                            </div>
+                            <div class="input-group">
+                                <label for="degreeInput${index}">درجه رادیکال:</label>
+                                <input type="number" id="degreeInput${index}" min="2" value="2" placeholder="مثلا: 2">
+                            </div>
+                            <div class="button-group">
+                                <button onclick="calculateRoot(${index})">محاسبه رادیکال</button>
+                                <button class="btn-secondary" onclick="clearInputs(['radicandInput${index}', 'degreeInput${index}'], 'rootResult${index}')">پاک کردن</button>
+                            </div>
+                        </div>
+                        <div class="result" id="rootResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+                
+                'دایره': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label for="radiusInput${index}">شعاع دایره:</label>
+                                <input type="number" id="radiusInput${index}" min="0" placeholder="مثلا: 5">
+                            </div>
+                            <div class="button-group">
+                                <button onclick="calculateCircle(${index}, 'circumference')">محیط</button>
+                                <button onclick="calculateCircle(${index}, 'area')">مساحت</button>
+                                <button onclick="calculateCircle(${index}, 'both')">هر دو</button>
+                                <button class="btn-secondary" onclick="clearInput('radiusInput${index}', 'circleResult${index}')">پاک کردن</button>
+                            </div>
+                        </div>
+                        <div class="result" id="circleResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+                
+                'فیثاغورث': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label for="sideA${index}">ضلع اول (a):</label>
+                                <input type="number" id="sideA${index}" min="0" placeholder="مثلا: 3">
+                            </div>
+                            <div class="input-group">
+                                <label for="sideB${index}">ضلع دوم (b):</label>
+                                <input type="number" id="sideB${index}" min="0" placeholder="مثلا: 4">
+                            </div>
+                            <div class="button-group">
+                                <button onclick="calculatePythagoras(${index})">محاسبه وتر</button>
+                                <button class="btn-secondary" onclick="clearInputs(['sideA${index}', 'sideB${index}'], 'pythagorasResult${index}')">پاک کردن</button>
+                            </div>
+                        </div>
+                        <div class="result" id="pythagorasResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+                
+                'ضلع مجهول': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label for="hypotenuse${index}">وتر (c):</label>
+                                <input type="number" id="hypotenuse${index}" min="0" placeholder="مثلا: 5">
+                            </div>
+                            <div class="input-group">
+                                <label for="knownSide${index}">ضلع معلوم (a یا b):</label>
+                                <input type="number" id="knownSide${index}" min="0" placeholder="مثلا: 3">
+                            </div>
+                            <div class="button-group">
+                                <button onclick="findMissingSide(${index})">پیدا کردن ضلع مجهول</button>
+                                <button class="btn-secondary" onclick="clearInputs(['hypotenuse${index}', 'knownSide${index}'], 'missingSideResult${index}')">پاک کردن</button>
+                            </div>
+                        </div>
+                        <div class="result" id="missingSideResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+                
+                'زوایای چندضلعی': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label for="sidesCount${index}">تعداد اضلاع (n):</label>
+                                <input type="number" id="sidesCount${index}" min="3" placeholder="مثلا: 5">
+                            </div>
+                            <div class="button-group">
+                                <button onclick="calculatePolygonAngles(${index})">محاسبه زوایا</button>
+                                <button class="btn-secondary" onclick="clearInput('sidesCount${index}', 'polygonResult${index}')">پاک کردن</button>
+                            </div>
+                        </div>
+                        <div class="result" id="polygonResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+                
+                'ماشین حساب': `
+                    <div class="calculator">
+                        <div>
+                            <div class="keyboard-calculator">
+                                <div class="input-group">
+                                    <label for="keyboardCalc${index}">عبارت ریاضی را وارد کنید (از کیبورد استفاده کنید):</label>
+                                    <input type="text" id="keyboardCalc${index}" 
+                                           class="keyboard-input"
+                                           placeholder="مثال: 12+45*(3-2)/5"
+                                           onkeydown="handleKeyboardCalcInput(event, ${index})">
+                                </div>
+                                
+                                <div class="button-group">
+                                    <button onclick="calculateKeyboardExpression(${index})">محاسبه</button>
+                                    <button class="btn-secondary" onclick="clearKeyboardInput(${index})">پاک کردن</button>
+                                    <button class="btn-success" onclick="useExample(${index})">مثال</button>
+                                </div>
+                                
+                                <div class="result" id="keyboardResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                                
+                                <div class="keyboard-hint">
+                                    <h4>📋 راهنمای استفاده از کیبورد:</h4>
+                                    <div class="hint-grid">
+                                        <div class="hint-item"><span>جمع:</span><span>+</span></div>
+                                        <div class="hint-item"><span>تفریق:</span><span>-</span></div>
+                                        <div class="hint-item"><span>ضرب:</span><span>*</span></div>
+                                        <div class="hint-item"><span>تقسیم:</span><span>/</span></div>
+                                        <div class="hint-item"><span>توان:</span><span>** یا ^</span></div>
+                                        <div class="hint-item"><span>جذر:</span><span>sqrt(عدد)</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+
+                'تبدیل واحدها': renderUnitConverter(index),
+                
+                'کسر مصری': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label for="numerator${index}">صورت کسر:</label>
+                                <input type="number" id="numerator${index}" min="1" placeholder="مثلا: 4">
+                            </div>
+                            <div class="input-group">
+                                <label for="denominator${index}">مخرج کسر:</label>
+                                <input type="number" id="denominator${index}" min="2" placeholder="مثلا: 5">
+                            </div>
+                            <div class="button-group">
+                                <button onclick="egyptianFraction(${index})">تبدیل به کسر مصری</button>
+                                <button class="btn-secondary" onclick="clearInputs(['numerator${index}', 'denominator${index}'], 'egyptianResult${index}')">پاک کردن</button>
+                            </div>
+                        </div>
+                        <div class="result" id="egyptianResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+                
+                'ترکیب': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label for="nComb${index}">تعداد کل (n):</label>
+                                <input type="number" id="nComb${index}" min="1" placeholder="مثلا: 5">
+                            </div>
+                            <div class="input-group">
+                                <label for="rComb${index}">تعداد انتخاب (r):</label>
+                                <input type="number" id="rComb${index}" min="0" placeholder="مثلا: 2">
+                            </div>
+                            <div class="button-group">
+                                <button onclick="calculateCombination(${index})">محاسبه ترکیب</button>
+                                <button class="btn-secondary" onclick="clearInputs(['nComb${index}', 'rComb${index}'], 'combinationResult${index}')">پاک کردن</button>
+                            </div>
+                        </div>
+                        <div class="result" id="combinationResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+                
+                'مثلث خیام': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label for="pascalRow${index}">سطر مورد نظر (0 تا 15):</label>
+                                <input type="number" id="pascalRow${index}" min="0" max="15" placeholder="مثلا: 5">
+                            </div>
+                            <div class="button-group">
+                                <button onclick="generatePascal(${index})">نمایش سطر</button>
+                                <button onclick="generatePascalTriangle(${index})">نمایش مثلث</button>
+                                <button class="btn-secondary" onclick="clearInput('pascalRow${index}', 'pascalResult${index}')">پاک کردن</button>
+                            </div>
+                        </div>
+                        <div class="result" id="pascalResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+                
+                'میانگین': `
+                    <div class="calculator">
+                        <div>
+                            <div class="input-group">
+                                <label>اعداد را وارد کنید:</label>
+                                <div id="numberFields${index}" class="number-fields-container"></div>
+                            </div>
+                            
+                            <div class="button-group">
+                                <button onclick="addNumberField(${index})"><i class="fas fa-plus"></i> اضافه کردن فیلد</button>
+                                <button onclick="calculateCustomAverage(${index})">محاسبه میانگین</button>
+                                <button class="btn-secondary" onclick="clearNumberFields(${index})">پاک کردن همه</button>
+                            </div>
+                        </div>
+                        <div class="result" id="averageResult${index}">نتیجه اینجا نمایش داده می‌شود</div>
+                    </div>
+                `,
+
+                'کتابخانه فرمول': `
+                    <div class="tool-description">
+                        <h3>کتابخانه فرمول‌های طلایی</h3>
+                        <p>فرمول‌های مهم را در دسته‌های کاربردی ببینید و سریع استفاده کنید.</p>
+                    </div>
+                    <div id="formulaLibrary${index}"></div>
+                `,
+                
+                'تعاریف ریاضی': `<div id="definitions-container${index}"></div>`,
+                
+                'تاریخچه ریاضیات': `
+                    <div class="search-container">
+                        <input type="text" id="math-history-search${index}" 
+                               placeholder="جستجو در بین دانشمندان ریاضی (نام، دوره، دستاوردها)..."
+                               onkeyup="searchMathematiciansTable(${index}, this.value)">
+                    </div>
+                    <div id="mathematicians-table-container${index}"></div>
+                `
+            };
+
+            return contents[toolName] || '<div class="result">این ابزار به زودی اضافه می‌شود</div>';
+        }
+
+        // توابع کمکی
+        function clearInput(inputId, resultId) {
+            const input = document.getElementById(inputId);
+            const result = document.getElementById(resultId);
+            if (input) input.value = '';
+            if (result) result.textContent = 'نتیجه اینجا نمایش داده می‌شود';
+        }
+
+        function clearInputs(inputIds, resultId) {
+            inputIds.forEach(id => {
+                const input = document.getElementById(id);
+                if (input) input.value = '';
+            });
+            const result = document.getElementById(resultId);
+            if (result) result.textContent = 'نتیجه اینجا نمایش داده می‌شود';
+        }
+
+        function getUnitCategory(categoryKey) {
+            return unitCategories.find(category => category.key === categoryKey);
+        }
+
+        function getUnitByKey(category, unitKey) {
+            if (!category) return null;
+            return category.units.find(unit => unit.key === unitKey) || null;
+        }
+
+        function getUnitDisplay(unit) {
+            if (!unit) return '';
+            return `${unit.label} (${unit.symbol})`;
+        }
+
+        function getUnitOptions(categoryKey, selectedKey) {
+            const category = getUnitCategory(categoryKey);
+            if (!category) return '';
+            return category.units.map(unit => {
+                const selected = unit.key === selectedKey ? 'selected' : '';
+                return `<option value="${unit.key}" ${selected}>${unit.label} (${unit.symbol})</option>`;
+            }).join('');
+        }
+
+        function renderUnitConverter(index) {
+            const tabs = unitCategories.map((category, i) => `
+                <button class="unit-tab ${i === 0 ? 'active' : ''}" data-key="${category.key}"
+                        onclick="switchUnitCategory(${index}, '${category.key}')">
+                    <i class="fas ${category.icon}"></i> ${category.label}
+                </button>
+            `).join('');
+
+            const bodies = unitCategories.map((category, i) => {
+                const baseUnit = getUnitByKey(category, category.base);
+                const baseLabel = baseUnit ? getUnitDisplay(baseUnit) : category.base;
+
+                return `
+                    <div class="unit-category ${i === 0 ? 'active' : ''}" id="unitCategory-${index}-${category.key}">
+                        <div class="unit-category-header">
+                            <div>
+                                <h5>${category.label}</h5>
+                                <p>${category.description}</p>
+                            </div>
+                            <div class="unit-hero-badge"><i class="fas fa-info-circle"></i> واحد پایه: ${baseLabel}</div>
+                        </div>
+                        <div class="unit-grid">
+                            <div>
+                                <div class="input-group">
+                                    <label for="unitValue-${index}-${category.key}">مقدار:</label>
+                                    <input type="number" id="unitValue-${index}-${category.key}" step="any"
+                                           placeholder="مثلا: 12.5"
+                                           oninput="autoConvertUnits(${index}, '${category.key}')">
+                                </div>
+                                <div class="input-group">
+                                    <label for="unitFrom-${index}-${category.key}">از واحد:</label>
+                                    <select id="unitFrom-${index}-${category.key}"
+                                            onchange="autoConvertUnits(${index}, '${category.key}')">
+                                        ${getUnitOptions(category.key, category.defaultFrom)}
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <label for="unitTo-${index}-${category.key}">به واحد:</label>
+                                    <select id="unitTo-${index}-${category.key}"
+                                            onchange="autoConvertUnits(${index}, '${category.key}')">
+                                        ${getUnitOptions(category.key, category.defaultTo)}
+                                    </select>
+                                </div>
+                                <div class="button-group">
+                                    <button onclick="convertUnits(${index}, '${category.key}')">تبدیل کن</button>
+                                    <button class="btn-secondary" onclick="clearUnitConverter(${index}, '${category.key}')">پاک کردن</button>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="unit-result" id="unitResult-${index}-${category.key}">
+                                    نتیجه اینجا نمایش داده می‌شود
+                                </div>
+                                <div class="unit-steps" id="unitSteps-${index}-${category.key}"></div>
+                                <div class="unit-others" id="unitOthers-${index}-${category.key}"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <div class="unit-panel" id="unitPanel${index}">
+                    <div class="unit-hero">
+                        <div>
+                            <h4>ابرپنل خفن تبدیل واحدها</h4>
+                            <p>هر تبدیل با توضیح مرحله‌ای + خروجی همزمان برای همه واحدهای جهانی و کاربردی.</p>
+                        </div>
+                        <div class="unit-hero-badge"><i class="fas fa-layer-group"></i> تبدیل زنده و دقیق</div>
+                    </div>
+                    <div class="unit-tabs">${tabs}</div>
+                    ${bodies}
+                </div>
+            `;
+        }
+
+        function switchUnitCategory(index, categoryKey) {
+            const panel = document.getElementById(`unitPanel${index}`);
+            if (!panel) return;
+
+            panel.querySelectorAll('.unit-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.key === categoryKey);
+            });
+
+            panel.querySelectorAll('.unit-category').forEach(category => {
+                category.classList.toggle('active', category.id === `unitCategory-${index}-${categoryKey}`);
+            });
+        }
+
+        function formatValue(value) {
+            if (Number.isNaN(value)) return 'نامعتبر';
+            if (!isFinite(value)) return '∞';
+            if (value === 0) return '0';
+            const abs = Math.abs(value);
+            if (abs >= 1e9 || abs < 1e-6) {
+                const exp = value.toExponential(6).split('e');
+                const coeff = parseFloat(exp[0]).toLocaleString('fa-IR', { maximumFractionDigits: 6 });
+                const power = parseInt(exp[1], 10);
+                return `${coeff}×10^${power}`;
+            }
+            return value.toLocaleString('fa-IR', { maximumFractionDigits: 6 });
+        }
+
+        function getTemperatureToBaseStep(unitKey, rawValue, baseValue) {
+            const v = formatValue(rawValue);
+            const b = formatValue(baseValue);
+            switch (unitKey) {
+                case 'C':
+                    return `K = ${v} + 273.15 = ${b}`;
+                case 'F':
+                    return `K = (${v} − 32) × 5/9 + 273.15 = ${b}`;
+                case 'K':
+                    return `K = ${v} = ${b}`;
+                case 'R':
+                    return `K = ${v} × 5/9 = ${b}`;
+                default:
+                    return `K = ${b}`;
+            }
+        }
+
+        function getTemperatureFromBaseStep(unitKey, baseValue, resultValue) {
+            const b = formatValue(baseValue);
+            const r = formatValue(resultValue);
+            switch (unitKey) {
+                case 'C':
+                    return `°C = ${b} − 273.15 = ${r}`;
+                case 'F':
+                    return `°F = (${b} − 273.15) × 9/5 + 32 = ${r}`;
+                case 'K':
+                    return `K = ${b} = ${r}`;
+                case 'R':
+                    return `°R = ${b} × 9/5 = ${r}`;
+                default:
+                    return `${r}`;
+            }
+        }
+
+        function resetUnitOutputs(index, categoryKey) {
+            const resultDiv = document.getElementById(`unitResult-${index}-${categoryKey}`);
+            const stepsDiv = document.getElementById(`unitSteps-${index}-${categoryKey}`);
+            const othersDiv = document.getElementById(`unitOthers-${index}-${categoryKey}`);
+
+            if (resultDiv) resultDiv.textContent = 'نتیجه اینجا نمایش داده می‌شود';
+            if (stepsDiv) stepsDiv.innerHTML = '';
+            if (othersDiv) othersDiv.innerHTML = '';
+        }
+
+        function clearUnitConverter(index, categoryKey) {
+            const input = document.getElementById(`unitValue-${index}-${categoryKey}`);
+            if (input) input.value = '';
+            resetUnitOutputs(index, categoryKey);
+        }
+
+        function autoConvertUnits(index, categoryKey) {
+            const input = document.getElementById(`unitValue-${index}-${categoryKey}`);
+            if (!input || input.value.trim() === '') {
+                resetUnitOutputs(index, categoryKey);
+                return;
+            }
+            convertUnits(index, categoryKey, true);
+        }
+
+        function convertUnits(index, categoryKey, silent = false) {
+            const category = getUnitCategory(categoryKey);
+            if (!category) return;
+
+            const input = document.getElementById(`unitValue-${index}-${categoryKey}`);
+            const fromSelect = document.getElementById(`unitFrom-${index}-${categoryKey}`);
+            const toSelect = document.getElementById(`unitTo-${index}-${categoryKey}`);
+            const resultDiv = document.getElementById(`unitResult-${index}-${categoryKey}`);
+            const stepsDiv = document.getElementById(`unitSteps-${index}-${categoryKey}`);
+            const othersDiv = document.getElementById(`unitOthers-${index}-${categoryKey}`);
+
+            if (!input || !fromSelect || !toSelect || !resultDiv || !stepsDiv || !othersDiv) return;
+
+            const rawValue = parseFloat(input.value);
+            if (isNaN(rawValue)) {
+                if (!silent) {
+                    resultDiv.textContent = 'لطفا یک مقدار معتبر وارد کنید';
+                    stepsDiv.innerHTML = '';
+                    othersDiv.innerHTML = '';
+                }
+                return;
+            }
+
+            const fromUnit = getUnitByKey(category, fromSelect.value);
+            const toUnit = getUnitByKey(category, toSelect.value);
+            if (!fromUnit || !toUnit) return;
+
+            const baseUnit = getUnitByKey(category, category.base);
+            const baseSymbol = baseUnit ? baseUnit.symbol : category.base;
+
+            let baseValue;
+            let resultValue;
+
+            if (category.type === 'temperature') {
+                baseValue = fromUnit.toBase(rawValue);
+                resultValue = toUnit.fromBase(baseValue);
+            } else {
+                baseValue = rawValue * fromUnit.factor;
+                resultValue = baseValue / toUnit.factor;
+            }
+
+            resultDiv.innerHTML = `
+                <div>نتیجه تبدیل</div>
+                <div class="value">${formatValue(resultValue)} ${toUnit.symbol}</div>
+                <div class="unit-meta">${formatValue(rawValue)} ${fromUnit.symbol} → ${formatValue(resultValue)} ${toUnit.symbol}</div>
+            `;
+
+            if (category.type === 'temperature') {
+                const stepToBase = getTemperatureToBaseStep(fromUnit.key, rawValue, baseValue);
+                const stepFromBase = getTemperatureFromBaseStep(toUnit.key, baseValue, resultValue);
+                stepsDiv.innerHTML = `
+                    <div><strong>گام ۱:</strong> ${stepToBase}</div>
+                    <div><strong>گام ۲:</strong> ${stepFromBase}</div>
+                    <div class="unit-meta">ورودی: ${formatValue(rawValue)} ${fromUnit.symbol} | پایه: ${formatValue(baseValue)} ${baseSymbol}</div>
+                `;
+            } else {
+                const directFactor = fromUnit.factor / toUnit.factor;
+                stepsDiv.innerHTML = `
+                    <div><strong>گام ۱:</strong> ${formatValue(rawValue)} ${fromUnit.symbol} × ${formatValue(fromUnit.factor)} = ${formatValue(baseValue)} ${baseSymbol}</div>
+                    <div><strong>گام ۲:</strong> ${formatValue(baseValue)} ${baseSymbol} ÷ ${formatValue(toUnit.factor)} = ${formatValue(resultValue)} ${toUnit.symbol}</div>
+                    <div><strong>گام ۳:</strong> تبدیل مستقیم: مقدار × ${formatValue(directFactor)} = ${formatValue(resultValue)}</div>
+                    <div class="unit-meta">ضریب مستقیم: × ${formatValue(directFactor)}</div>
+                `;
+            }
+
+            const othersHTML = category.units.map(unit => {
+                const otherValue = category.type === 'temperature'
+                    ? unit.fromBase(baseValue)
+                    : baseValue / unit.factor;
+                const factorText = category.type === 'temperature'
+                    ? unit.fromFormula
+                    : `ضریب: × ${formatValue(fromUnit.factor / unit.factor)}`;
+                const activeClass = unit.key === toUnit.key ? 'active' : '';
+
+                return `
+                    <div class="other-item ${activeClass}">
+                        <span>${formatValue(otherValue)} ${unit.symbol}</span>
+                        <div>${unit.label}</div>
+                        <div>${factorText}</div>
+                    </div>
+                `;
+            }).join('');
+
+            othersDiv.innerHTML = `
+                <div class="other-title">تبدیل‌های همزمان به همه واحدها</div>
+                ${othersHTML}
+            `;
+
+            if (!silent) {
+                awardXP(3, 'تبدیل واحدها', 'calc');
+            }
+        }
+
+        // توابع محاسباتی
+        function checkPrime(index) {
+            const inputEl = document.getElementById(`primeInput${index}`);
+            const resultEl = document.getElementById(`primeResult${index}`);
+            const raw = inputEl ? String(inputEl.value || '').trim() : '';
+            if (!raw) {
+                safeSetResult(resultEl, 'لطفا عددی بزرگتر از 1 وارد کنید');
+                return;
+            }
+
+            safeSetResult(resultEl, 'در حال بررسی اول بودن...');
+            runMathTask('isPrime', raw)
+                .then(({ n, isPrime }) => {
+                    safeSetResult(resultEl, `${n} ${isPrime ? 'عدد اول است ✓' : 'عدد اول نیست ✗'}`);
+                    awardXP(2, 'تشخیص عدد اول');
+                })
+                .catch((err) => {
+                    safeSetResult(resultEl, `خطا: ${err.message}`);
+                });
+        }
+
+        function factorize(index) {
+            const inputEl = document.getElementById(`factorInput${index}`);
+            const resultEl = document.getElementById(`factorResult${index}`);
+            const raw = inputEl ? String(inputEl.value || '').trim() : '';
+            if (!raw) {
+                safeSetResult(resultEl, 'لطفا عددی بزرگتر از 1 وارد کنید');
+                return;
+            }
+
+            safeSetResult(resultEl, 'در حال تجزیه به عوامل...');
+            runMathTask('factorize', raw)
+                .then(({ n, factors, timeout, remainder }) => {
+                    const pretty = factors.length ? factors.join(' × ') : '—';
+                    let text = `${n} = ${pretty}`;
+                    if (timeout) text += `\n(هشدار: محاسبه طولانی شد؛ ادامهٔ تجزیه ممکن است کامل نباشد. باقی‌مانده: ${remainder})`;
+                    safeSetResult(resultEl, text);
+                    awardXP(2, 'تجزیه عوامل');
+                })
+                .catch((err) => {
+                    safeSetResult(resultEl, `خطا: ${err.message}`);
+                });
+        }
+
+        function countDivisors(index) {
+            const inputEl = document.getElementById(`divisorInput${index}`);
+            const resultEl = document.getElementById(`divisorResult${index}`);
+            const raw = inputEl ? String(inputEl.value || '').trim() : '';
+            if (!raw) {
+                safeSetResult(resultEl, 'لطفا عدد صحیح مثبت وارد کنید');
+                return;
+            }
+
+            safeSetResult(resultEl, 'در حال شمارش مقسوم‌علیه‌ها...');
+            runMathTask('countDivisors', raw)
+                .then(({ n, count, timeout, remainder }) => {
+                    let text = `تعداد مقسوم‌علیه‌ها: ${count}`;
+                    if (timeout) text += `\n(هشدار: محاسبه طولانی شد؛ نتیجهٔ شمارش ممکن است دقیق نباشد. باقی‌مانده: ${remainder})`;
+                    safeSetResult(resultEl, text);
+                    awardXP(2, 'شمارش مقسوم‌علیه');
+                })
+                .catch((err) => {
+                    safeSetResult(resultEl, `خطا: ${err.message}`);
+                });
+        }
+
+        function calculateGCDLCM(index) {
+            const a = parseInt(document.getElementById(`num1${index}`).value);
+            const b = parseInt(document.getElementById(`num2${index}`).value);
+            
+            if (isNaN(a) || isNaN(b)) {
+                document.getElementById(`gcdlcmResult${index}`).textContent = 'لطفا دو عدد وارد کنید';
+                return;
+            }
+
+            function gcd(x, y) {
+                return y === 0 ? x : gcd(y, x % y);
+            }
+
+            const gcdValue = gcd(Math.abs(a), Math.abs(b));
+            const lcmValue = Math.abs(a * b) / gcdValue;
+
+            document.getElementById(`gcdlcmResult${index}`).textContent = 
+                `ب م م (${a}, ${b}) = ${gcdValue}\nک م م (${a}, ${b}) = ${lcmValue}`;
+
+            awardXP(2, 'محاسبه ب.م.م و ک.م.م');
+        }
+
+        function calculatePower(index) {
+            const base = parseFloat(document.getElementById(`baseInput${index}`).value);
+            const exponent = parseFloat(document.getElementById(`exponentInput${index}`).value);
+            
+            if (isNaN(base) || isNaN(exponent)) {
+                document.getElementById(`powerResult${index}`).textContent = 'لطفا مقادیر معتبر وارد کنید';
+                return;
+            }
+
+            const result = Math.pow(base, exponent);
+            document.getElementById(`powerResult${index}`).textContent = 
+                `${base}^${exponent} = ${result}`;
+
+            awardXP(2, 'محاسبه توان');
+        }
+
+        function calculateFactorial(index) {
+            const num = parseInt(document.getElementById(`factorialInput${index}`).value);
+            if (isNaN(num) || num < 0) {
+                document.getElementById(`factorialResult${index}`).textContent = 'لطفا عدد صحیح غیرمنفی وارد کنید';
+                return;
+            }
+
+            let result = 1n;
+            for (let i = 2; i <= num; i++) {
+                result *= BigInt(i);
+            }
+
+            document.getElementById(`factorialResult${index}`).textContent = 
+                `${num}! = ${result}`;
+
+            awardXP(2, 'محاسبه فاکتوریل');
+        }
+
+        function calculateRoot(index) {
+            const radicand = parseFloat(document.getElementById(`radicandInput${index}`).value);
+            const degree = parseFloat(document.getElementById(`degreeInput${index}`).value);
+            
+            if (isNaN(radicand) || isNaN(degree) || radicand < 0) {
+                document.getElementById(`rootResult${index}`).textContent = 'لطفا مقادیر معتبر وارد کنید';
+                return;
+            }
+
+            const result = Math.pow(radicand, 1/degree);
+            document.getElementById(`rootResult${index}`).textContent = 
+                `ریشه ${degree}ام ${radicand} = ${result.toFixed(6)}`;
+
+            awardXP(2, 'محاسبه ریشه');
+        }
+
+        function calculateCircle(index, type) {
+            const radius = parseFloat(document.getElementById(`radiusInput${index}`).value);
+            
+            if (isNaN(radius) || radius < 0) {
+                document.getElementById(`circleResult${index}`).textContent = 'لطفا شعاع معتبر وارد کنید';
+                return;
+            }
+
+            const circumference = (2 * Math.PI * radius).toFixed(4);
+            const area = (Math.PI * radius * radius).toFixed(4);
+
+            let result = '';
+            if (type === 'circumference') result = `محیط دایره: ${circumference}`;
+            else if (type === 'area') result = `مساحت دایره: ${area}`;
+            else result = `محیط: ${circumference}\nمساحت: ${area}`;
+
+            document.getElementById(`circleResult${index}`).textContent = result;
+
+            awardXP(2, 'محاسبه دایره');
+        }
+
+        function calculatePythagoras(index) {
+            const a = parseFloat(document.getElementById(`sideA${index}`).value);
+            const b = parseFloat(document.getElementById(`sideB${index}`).value);
+            
+            if (isNaN(a) || isNaN(b) || a < 0 || b < 0) {
+                document.getElementById(`pythagorasResult${index}`).textContent = 'لطفا اعداد معتبر وارد کنید';
+                return;
+            }
+
+            const c = Math.sqrt(a*a + b*b).toFixed(4);
+            document.getElementById(`pythagorasResult${index}`).textContent = 
+                `c = √(${a}² + ${b}²) = ${c}`;
+
+            awardXP(2, 'حل فیثاغورث');
+        }
+
+        function findMissingSide(index) {
+            const hypotenuse = parseFloat(document.getElementById(`hypotenuse${index}`).value);
+            const knownSide = parseFloat(document.getElementById(`knownSide${index}`).value);
+            
+            if (isNaN(hypotenuse) || isNaN(knownSide) || hypotenuse <= knownSide) {
+                document.getElementById(`missingSideResult${index}`).textContent = 'لطفا مقادیر معتبر وارد کنید (وتر باید بزرگتر از ضلع معلوم باشد)';
+                return;
+            }
+
+            const missingSide = Math.sqrt(hypotenuse*hypotenuse - knownSide*knownSide).toFixed(4);
+            document.getElementById(`missingSideResult${index}`).textContent = 
+                `ضلع مجهول = √(${hypotenuse}² - ${knownSide}²) = ${missingSide}`;
+
+            awardXP(2, 'محاسبه ضلع مجهول');
+        }
+
+        function calculatePolygonAngles(index) {
+            const n = parseInt(document.getElementById(`sidesCount${index}`).value);
+            
+            if (isNaN(n) || n < 3) {
+                document.getElementById(`polygonResult${index}`).textContent = 'لطفا عددی بزرگتر یا مساوی 3 وارد کنید';
+                return;
+            }
+
+            const interiorAngle = ((n - 2) * 180 / n).toFixed(2);
+            const exteriorAngle = (360 / n).toFixed(2);
+
+            document.getElementById(`polygonResult${index}`).textContent = 
+                `چندضلعی ${n} ضلعی:\nزاویه داخلی: ${interiorAngle}°\nزاویه خارجی: ${exteriorAngle}°`;
+
+            awardXP(2, 'محاسبه زوایای چندضلعی');
+        }
+
+        function egyptianFraction(index) {
+            let numerator = parseInt(document.getElementById(`numerator${index}`).value);
+            let denominator = parseInt(document.getElementById(`denominator${index}`).value);
+            
+            if (isNaN(numerator) || isNaN(denominator) || numerator >= denominator) {
+                document.getElementById(`egyptianResult${index}`).textContent = 'صورت باید کوچکتر از مخرج باشد';
+                return;
+            }
+
+            let result = [];
+            while (numerator > 0) {
+                let x = Math.ceil(denominator / numerator);
+                result.push(`1/${x}`);
+                numerator = numerator * x - denominator;
+                denominator = denominator * x;
+            }
+
+            document.getElementById(`egyptianResult${index}`).textContent = 
+                `کسر مصری: ${result.join(' + ')}`;
+
+            awardXP(3, 'کسر مصری');
+        }
+
+        function calculateCombination(index) {
+            const n = parseInt(document.getElementById(`nComb${index}`).value);
+            const r = parseInt(document.getElementById(`rComb${index}`).value);
+            
+            if (isNaN(n) || isNaN(r) || r > n || n < 0 || r < 0) {
+                document.getElementById(`combinationResult${index}`).textContent = 'لطفا مقادیر معتبر وارد کنید';
+                return;
+            }
+
+            function factorial(x) {
+                let result = 1n;
+                for (let i = 2; i <= x; i++) result *= BigInt(i);
+                return result;
+            }
+
+            const comb = factorial(n) / (factorial(r) * factorial(n - r));
+            document.getElementById(`combinationResult${index}`).textContent = 
+                `C(${n}, ${r}) = ${comb}`;
+
+            awardXP(3, 'محاسبه ترکیب');
+        }
+
+        function generatePascal(index) {
+            const row = parseInt(document.getElementById(`pascalRow${index}`).value);
+            
+            if (isNaN(row) || row < 0 || row > 15) {
+                document.getElementById(`pascalResult${index}`).textContent = 'لطفا عددی بین 0 تا 15 وارد کنید';
+                return;
+            }
+
+            function pascalRow(n) {
+                let row = [1];
+                for (let i = 1; i <= n; i++) {
+                    row.push(row[i-1] * (n - i + 1) / i);
+                }
+                return row;
+            }
+
+            const resultRow = pascalRow(row);
+            document.getElementById(`pascalResult${index}`).textContent = 
+                `سطر ${row}: ${resultRow.join(' ')}`;
+
+            awardXP(2, 'سطر مثلث خیام');
+        }
+
+        function generatePascalTriangle(index) {
+            const rows = parseInt(document.getElementById(`pascalRow${index}`).value);
+            
+            if (isNaN(rows) || rows < 0 || rows > 10) {
+                document.getElementById(`pascalResult${index}`).textContent = 'لطفا عددی بین 0 تا 10 وارد کنید';
+                return;
+            }
+
+            let triangle = [];
+            for (let i = 0; i <= rows; i++) {
+                let row = [1];
+                for (let j = 1; j <= i; j++) {
+                    row.push(row[j-1] * (i - j + 1) / j);
+                }
+                triangle.push(row.join(' '));
+            }
+
+            document.getElementById(`pascalResult${index}`).textContent = 
+                `مثلث خیام-پاسکال:\n${triangle.join('\n')}`;
+
+            awardXP(3, 'نمایش مثلث خیام');
+        }
+
+        // ماشین حساب کیبوردی
+        function handleKeyboardCalcInput(event, index) {
+            if (event.key === 'Enter') {
+                calculateKeyboardExpression(index);
+            }
+        }
+
+        function calculateKeyboardExpression(index) {
+            const input = document.getElementById(`keyboardCalc${index}`);
+            const resultDiv = document.getElementById(`keyboardResult${index}`);
+            
+            if (!input || !resultDiv) return;
+            
+            let expression = input.value
+                .replace(/π/g, 'Math.PI')
+                .replace(/pi/g, 'Math.PI')
+                .replace(/sin\(/g, 'Math.sin(Math.PI/180*')
+                .replace(/cos\(/g, 'Math.cos(Math.PI/180*')
+                .replace(/tan\(/g, 'Math.tan(Math.PI/180*')
+                .replace(/sqrt\(/g, 'Math.sqrt(')
+                .replace(/log\(/g, 'Math.log10(')
+                .replace(/ln\(/g, 'Math.log(')
+                .replace(/\^/g, '**');
+            
+            try {
+                if (!/^[0-9+\-*/().\s,MathPIcossintanlogsqrt]*$/.test(expression)) {
+                    resultDiv.textContent = 'عبارت حاوی کاراکترهای غیرمجاز است';
+                    return;
+                }
+                
+                const result = eval(expression);
+                if (typeof result === 'number' && !isNaN(result)) {
+                    resultDiv.innerHTML = `
+                        <div style="text-align: center;">
+                            <div style="font-size: 1.3em; color: #10b981; margin-bottom: 10px;">✅ محاسبه موفق</div>
+                            <div style="font-size: 1.1em; margin: 5px 0;"><b>${input.value}</b></div>
+                            <div style="font-size: 1.5em; color: #06b6d4; margin: 10px 0;">= ${result}</div>
+                            <div style="font-size: 0.9em; color: #94a3b8; margin-top: 15px;">${expression}</div>
+                        </div>
+                    `;
+                    awardXP(3, 'محاسبه ماشین حساب');
+                } else {
+                    resultDiv.textContent = 'نتیجه محاسبه عددی نیست';
+                }
+            } catch (error) {
+                resultDiv.textContent = `خطا در محاسبه: ${error.message}`;
+            }
+        }
+
+        function clearKeyboardInput(index) {
+            const input = document.getElementById(`keyboardCalc${index}`);
+            const resultDiv = document.getElementById(`keyboardResult${index}`);
+            if (input) input.value = '';
+            if (resultDiv) resultDiv.textContent = 'نتیجه اینجا نمایش داده می‌شود';
+        }
+
+        function useExample(index) {
+            const examples = ['12+45*(3-2)/5' , 'sqrt(16)+2^3', 'Math.PI * 5^2'];
+            const randomExample = examples[Math.floor(Math.random() * examples.length)];
+            const input = document.getElementById(`keyboardCalc${index}`);
+            if (input) input.value = randomExample;
+        }
+
+        // سیستم میانگین‌گیری
+        function initializeNumberFields(index) {
+            const container = document.getElementById(`numberFields${index}`);
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            for (let i = 1; i <= 3; i++) {
+                addNumberFieldRow(index, i);
+            }
+        }
+
+        function addNumberFieldRow(index, id, value = '') {
+            const container = document.getElementById(`numberFields${index}`);
+            if (!container) return;
+            
+            const row = document.createElement('div');
+            row.className = 'number-field-row';
+            row.innerHTML = `
+                <span class="field-label">عدد ${id}:</span>
+                <input type="number" class="number-input" placeholder="مقدار عددی" value="${value}" step="any">
+                <button class="remove-field-btn" onclick="removeNumberField(this, ${index})"><i class="fas fa-trash"></i></button>
+            `;
+            container.appendChild(row);
+        }
+
+        function addNumberField(index) {
+            const container = document.getElementById(`numberFields${index}`);
+            if (!container) return;
+            
+            const currentCount = container.querySelectorAll('.number-field-row').length;
+            addNumberFieldRow(index, currentCount + 1);
+        }
+
+        function removeNumberField(button, index) {
+            const row = button.closest('.number-field-row');
+            if (row) {
+                row.remove();
+                updateNumberFieldLabels(index);
+            }
+        }
+
+        function updateNumberFieldLabels(index) {
+            const container = document.getElementById(`numberFields${index}`);
+            if (!container) return;
+            
+            const rows = container.querySelectorAll('.number-field-row');
+            rows.forEach((row, i) => {
+                const label = row.querySelector('.field-label');
+                if (label) {
+                    label.textContent = `عدد ${i + 1}:`;
+                }
+            });
+        }
+
+        function clearNumberFields(index) {
+            const container = document.getElementById(`numberFields${index}`);
+            if (!container) return;
+            
+            container.innerHTML = '';
+            initializeNumberFields(index);
+            
+            const resultDiv = document.getElementById(`averageResult${index}`);
+            if (resultDiv) {
+                resultDiv.textContent = 'نتیجه اینجا نمایش داده می‌شود';
+            }
+        }
+
+        function calculateCustomAverage(index) {
+            const container = document.getElementById(`numberFields${index}`);
+            if (!container) return;
+            
+            const inputs = container.querySelectorAll('.number-input');
+            const numbers = [];
+            
+            inputs.forEach(input => {
+                const value = parseFloat(input.value);
+                if (!isNaN(value)) {
+                    numbers.push(value);
+                }
+            });
+            
+            if (numbers.length === 0) {
+                const resultDiv = document.getElementById(`averageResult${index}`);
+                if (resultDiv) {
+                    resultDiv.textContent = 'لطفاً حداقل یک عدد معتبر وارد کنید';
+                }
+                return;
+            }
+            
+            const sum = numbers.reduce((a, b) => a + b, 0);
+            const mean = sum / numbers.length;
+            
+            const sorted = [...numbers].sort((a, b) => a - b);
+            let median;
+            const mid = Math.floor(sorted.length / 2);
+            
+            if (sorted.length % 2 === 0) {
+                median = (sorted[mid - 1] + sorted[mid]) / 2;
+            } else {
+                median = sorted[mid];
+            }
+            
+            const frequency = {};
+            let maxFreq = 0;
+            let modes = [];
+            
+            numbers.forEach(num => {
+                frequency[num] = (frequency[num] || 0) + 1;
+                if (frequency[num] > maxFreq) {
+                    maxFreq = frequency[num];
+                    modes = [num];
+                } else if (frequency[num] === maxFreq) {
+                    modes.push(num);
+                }
+            });
+            
+            const modeText = maxFreq > 1 ? 
+                `مد: ${modes.join(', ')} (تکرار: ${maxFreq} بار)` : 
+                'بدون مد';
+            
+            const resultDiv = document.getElementById(`averageResult${index}`);
+            if (resultDiv) {
+                resultDiv.innerHTML = `
+                    <div style="text-align: center;">
+                        <div style="margin-bottom: 10px; color: #06b6d4; font-size: 1.2em;">🔢 ${numbers.length} عدد پردازش شد</div>
+                        <div style="margin: 5px 0;">میانگین حسابی: <b>${mean.toFixed(4)}</b></div>
+                        <div style="margin: 5px 0;">میانه: <b>${median.toFixed(4)}</b></div>
+                        <div style="margin: 5px 0;">${modeText}</div>
+                        <div style="margin-top: 15px; color: #94a3b8; font-size: 0.9em;">
+                            مجموع: ${sum.toFixed(2)} | کوچکترین: ${Math.min(...numbers)} | بزرگترین: ${Math.max(...numbers)}
+                        </div>
+                    </div>
+                `;
+            }
+
+            awardXP(4, 'محاسبه میانگین', 'calc');
+        }
+
+        // سیستم تعاریف ریاضی
+        function displayDefinitions(index) {
+            const container = document.getElementById(`definitions-container${index}`);
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            mathDefinitions.forEach(category => {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'definition-category';
+                categoryDiv.innerHTML = `
+                    <h3>${category.category}</h3>
+                    <p style="color: var(--gray); margin-bottom: 20px; font-style: italic;">${category.description}</p>
+                `;
+                
+                category.definitions.forEach(def => {
+                    const item = document.createElement('div');
+                    item.className = 'definition-item';
+                    item.innerHTML = `
+                        <div class="definition-term"><i class="fas fa-calculator"></i> ${def.term}</div>
+                        <div class="definition-content">${def.definition}</div>
+                        ${def.example ? `<div class="definition-example">${def.example}</div>` : ''}
+                    `;
+                    categoryDiv.appendChild(item);
+                });
+                
+                container.appendChild(categoryDiv);
+            });
+        }
+
+        // سیستم جدول دانشمندان
+        function displayMathematiciansTable(index) {
+            const container = document.getElementById(`mathematicians-table-container${index}`);
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            const table = document.createElement('table');
+            table.className = 'mathematicians-table';
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th width="30%">نام دانشمند</th>
+                        <th width="20%">دوره تاریخی</th>
+                        <th width="50%">دستاوردها و </th>
+                    </tr>
+                </thead>
+                <tbody id="mathematicians-tbody${index}"></tbody>
+            `;
+            
+            container.appendChild(table);
+            updateMathematiciansTable(index, mathematicians);
+        }
+
+        function updateMathematiciansTable(index, data) {
+            const tbody = document.getElementById(`mathematicians-tbody${index}`);
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            data.forEach(math => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${math.name}</strong></td>
+                    <td><span class="era-badge">${math.era}</span></td>
+                    <td>${math.contributions}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function searchMathematiciansTable(index, query) {
+            const searchTerm = query.toLowerCase().trim();
+            
+            if (!searchTerm) {
+                updateMathematiciansTable(index, mathematicians);
+                return;
+            }
+            
+            const filtered = mathematicians.filter(math => 
+                math.name.toLowerCase().includes(searchTerm) ||
+                math.era.toLowerCase().includes(searchTerm) ||
+                math.contributions.toLowerCase().includes(searchTerm)
+            );
+            
+            updateMathematiciansTable(index, filtered);
+        }
+
+        // منوی همبرگری
+        let hamburgerOpen = false;
+
+        function toggleHamburgerMenu() {
+            const sidebar = document.querySelector('.hamburger-sidebar');
+            const overlay = document.querySelector('.hamburger-overlay');
+            hamburgerOpen = !hamburgerOpen;
+            const equationModal = document.getElementById('equationModal');
+            const equationOpen = equationModal && equationModal.style.display === 'block';
+            
+            if (hamburgerOpen) {
+                sidebar.classList.add('open');
+                overlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            } else {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+                document.body.style.overflow = equationOpen ? 'hidden' : 'auto';
+            }
+        }
+
+        document.querySelectorAll('.sidebar-link').forEach(link => {
+            link.addEventListener('click', () => {
+                toggleHamburgerMenu();
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const modal = document.getElementById('equationModal');
+                if (modal && modal.style.display === 'block') {
+                    closeEquationModal();
+                }
+                if (hamburgerOpen) {
+                    toggleHamburgerMenu();
+                }
+            }
+        });
+
+        // تابع تغییر تب از فوتر
+        function switchToTab(tabName) {
+            const tabs = Array.from(document.querySelectorAll('.tab'));
+            const tabIndex = tabs.findIndex(tab => tab.textContent === tabName);
+            if (tabIndex !== -1) {
+                switchTab(tabIndex);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        // دکمه برگشت به بالا
+        const backToTopBtn = document.getElementById('backToTop');
+
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 300) {
+                backToTopBtn.style.display = 'flex';
+            } else {
+                backToTopBtn.style.display = 'none';
+            }
+        });
+
+        backToTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        // بارگذاری اولیه
+        window.onload = function() {
+            initMathCanvas();
+            initIntroSplash();
+
+            // راه‌اندازی سیستم سطح‌بندی
+            levelSystem = new LevelSystem();
+            const footerLevel = document.getElementById('footerLevel');
+            if (footerLevel) footerLevel.textContent = levelSystem.level;
+
+            const equationModal = document.getElementById('equationModal');
+            if (equationModal) {
+                equationModal.addEventListener('click', (e) => {
+                    if (e.target === equationModal) {
+                        closeEquationModal();
+                    }
+                });
+            }
+
+            if (mathTools[0].name === 'میانگین') {
+                initializeNumberFields(0);
+            }
+            if (mathTools[0].name === 'تاریخچه ریاضیات') {
+                displayMathematiciansTable(0);
+            }
+            if (mathTools[0].name === 'تعاریف ریاضی') {
+                displayDefinitions(0);
+            }
+            if (mathTools[0].name === 'کتابخانه فرمول') {
+                displayFormulaLibrary(0);
+            }
+
+            setTimeout(() => {
+                levelSystem.showNotification('به سکوی خفن ریاضی خوش آمدید! 🎉', 'info');
+            }, 800);
+        };
