@@ -1,0 +1,539 @@
+
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تمرین اتحادها و تجزیه</title>
+  <style>
+     @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap');
+    
+    :root {
+      --primary-color: #4a90e2;
+      --secondary-color: #f8f9fa;
+      --success-color: #28a745;
+      --warning-color: #f39c12;
+      --error-color: #dc3545;
+      --shadow-color: rgba(0, 0, 0, 0.1);
+    }
+
+    body {
+      font-family: 'Vazirmatn', Arial, sans-serif;
+      text-align: center;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      direction: rtl;
+      margin: 0;
+      padding: 20px;
+      padding-bottom: 320px; /* فضای خالی برای کیبورد */
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    .container {
+      background: white;
+      padding: 20px;
+      margin: 0 auto;
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+      border-radius: 20px;
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+    }
+
+    .container:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 30px rgba(0,0,0,0.15);
+    }
+
+    h1 {
+      color: #2c3e50;
+      font-size: 2em;
+      margin-bottom: 20px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+
+    #question-box {
+      background: var(--secondary-color);
+      padding: 20px;
+      border-radius: 15px;
+      margin-top: 20px;
+    }
+
+    #question-text {
+      font-size: 24px;
+      color: #2c3e50;
+      margin: 20px 0;
+      text-align: center;
+      direction: ltr;
+      font-weight: bold;
+    }
+
+    input {
+      width: 90%;
+      padding: 15px;
+      margin: 15px auto;
+      font-size: 22px;
+      font-weight: bold;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      transition: all 0.3s ease;
+      text-align: center;
+      direction: ltr;
+      box-sizing: border-box;
+      background-color: #fff;
+      cursor: default;
+    }
+
+    input:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 10px rgba(74, 144, 226, 0.3);
+      outline: none;
+    }
+
+    button {
+      background: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 12px 25px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin: 10px;
+      font-family: 'Vazirmatn', Arial, sans-serif;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
+    }
+
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+      display: none; /* مخفی کردن دکمه ارسال اصلی برای تمیزی ظاهر */
+    }
+
+    #feedback {
+      font-size: 18px;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 10px;
+      text-align: center;
+      direction: ltr;
+      font-weight: bold;
+    }
+
+    #steps-container {
+      background: white;
+      border-radius: 15px;
+      margin-top: 25px;
+      padding: 20px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+      text-align: left;
+      direction: ltr;
+      display: none;
+    }
+
+    .step-title {
+      background: var(--primary-color);
+      color: white;
+      padding: 15px;
+      border-radius: 10px 10px 0 0;
+      font-weight: bold;
+      margin: -20px -20px 20px -20px;
+      text-align: left;
+      direction: ltr;
+    }
+
+    .step {
+      padding: 12px;
+      margin: 10px 0;
+      border-bottom: 1px solid #eee;
+      transition: all 0.3s ease;
+      text-align: left;
+      direction: ltr;
+    }
+
+    .step-number {
+      display: inline-block;
+      width: 25px;
+      font-weight: bold;
+      direction: ltr;
+    }
+
+    .step-content {
+      display: inline-block;
+      direction: ltr;
+      white-space: pre-wrap;
+    }
+
+    #scoreboard {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin-top: 20px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+      font-size: 20px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+
+    .score-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .score-number {
+      font-size: 24px;
+      font-weight: bold;
+      color: var(--primary-color);
+    }
+
+    .footer {
+      margin-top: 30px;
+      text-align: center;
+      font-size: 14px;
+      color: #666;
+      line-height: 1.8;
+    }
+
+    /* Animations */
+    .fade-in { animation: fadeIn 0.5s ease-in; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* سیستم کیبورد اختصاصی */
+    .keyboard-panel {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 100%;
+      max-width: 600px;
+      background: #ced4da;
+      padding: 10px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      border-radius: 20px 20px 0 0;
+      box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+      box-sizing: border-box;
+      z-index: 1000;
+      direction: ltr;
+    }
+    .key {
+      background: #fff;
+      height: 55px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      font-size: 22px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 2px 0 #adb5bd;
+      user-select: none;
+    }
+    .key:active { transform: translateY(2px); box-shadow: none; }
+    .key.op { background: #54a0ff; color: white; box-shadow: 0 2px 0 #2e86de; } 
+    .key.x-key { background: #ee5253; color: white; box-shadow: 0 2px 0 #c0392b; font-style: italic; } 
+    .key.action { background: #95a5a6; color: white; box-shadow: 0 2px 0 #7f8c8d; font-family: 'Vazirmatn'; font-size: 16px;} 
+    .key.check { background: var(--success-color); color: white; box-shadow: 0 2px 0 #1e7e34; font-family: 'Vazirmatn'; font-size: 18px;}
+    
+  </style>
+</head>
+<body>
+  <div class="container animate__animated animate__fadeIn">
+    <h1>تمرین اتحادها و تجزیه</h1>
+    <div id="question-box">
+      <p id="question-text" class="fade-in"></p>
+      <input type="text" id="answer-input" placeholder="پاسخ را بنویسید" class="fade-in" readonly="readonly">
+      
+      <button id="submit-btn" style="display:none;">ارسال پاسخ</button>
+      <button id="next-btn" style="display:none; width: 90%;">سوال بعدی</button>
+      
+      <p id="feedback"></p>
+      <div id="steps-container"></div>
+    </div>
+    
+    <div id="scoreboard">
+      <div class="score-item">
+        <span>✅</span>
+        <span class="score-number" id="correct-score">0</span>
+      </div>
+      <div class="score-item">
+        <span>❌</span>
+        <span class="score-number" id="wrong-score">0</span>
+      </div>
+    </div>
+    
+  <footer class="footer-credits">
+  <br>
+  سکوی پیشرفته خوارزمیکا
+    <a href="خوارزمی.html" target="_blank">بازگشت ></a>
+  </footer>
+  </div>
+
+  <div class="keyboard-panel">
+    <div class="key" onclick="press('1')">1</div>
+    <div class="key" onclick="press('2')">2</div>
+    <div class="key" onclick="press('3')">3</div>
+    <div class="key op" onclick="press('(')">(</div>
+    
+    <div class="key" onclick="press('4')">4</div>
+    <div class="key" onclick="press('5')">5</div>
+    <div class="key" onclick="press('6')">6</div>
+    <div class="key op" onclick="press(')')">)</div>
+    
+    <div class="key" onclick="press('7')">7</div>
+    <div class="key" onclick="press('8')">8</div>
+    <div class="key" onclick="press('9')">9</div>
+    <div class="key x-key" onclick="press('x')">x</div>
+    
+    <div class="key action" onclick="press('C')">پاک</div>
+    <div class="key" onclick="press('0')">0</div>
+    <div class="key op" onclick="press('²')">²</div>
+    <div class="key op" onclick="press('+')">+</div>
+    
+    <div class="key action" onclick="press('back')" style="grid-column: span 2;">⌫ حذف</div>
+    <div class="key op" onclick="press('-')">-</div>
+    <div class="key check" id="kb-submit" onclick="submitFromKeyboard()">بررسی</div>
+  </div>
+
+  <script>
+    let correctAnswers = 0;
+    let wrongAnswers = 0;
+    let answered = false;
+    let currentQuestion;
+    
+    // این تابع به صورت هوشمند پرانتزها رو مرتب میکنه تا تفاوتی بین (x+1)(x+6) و (x+6)(x+1) نباشه
+function normalize(str) {
+  // پاکسازی اولیه
+  let s = str
+    .replace(/<sup>2<\/sup>/g, "2")
+    .replace(/²/g, "2")
+    .replace(/X/gi, "x")
+    .replace(/\s+/g, "")
+    .toLowerCase();
+
+  // نرمال‌سازی ضریب 1 قبل از x
+  s = s.replace(/(?<![0-9])1x/g, "x");
+
+  // نرمال‌سازی داخل هر پرانتز: مرتب‌سازی جمله‌ها
+  s = s.replace(/\(([^)]+)\)/g, (match, inner) => {
+    const terms = inner.match(/[+-]?[^+-]+/g) || [inner];
+    terms.sort((a, b) => {
+      const aHasX = a.includes('x');
+      const bHasX = b.includes('x');
+      if (aHasX && !bHasX) return -1;
+      if (!aHasX && bHasX) return 1;
+      return a.localeCompare(b);
+    });
+    return `(${terms.join('')})`;
+  });
+
+  // مرتب‌سازی ترتیب پرانتزها نسبت به هم
+  s = s.replace(/\(([^)]+)\)\(([^)]+)\)/g, (match, p1, p2) => {
+    const parts = [`(${p1})`, `(${p2})`].sort();
+    return parts.join('');
+  });
+
+  // نرمال‌سازی جمله‌های بیرون از پرانتز (مثل 4x2+12x+9)
+  if (!s.includes('(')) {
+    const terms = s.match(/[+-]?[^+-]+/g) || [s];
+    terms.sort((a, b) => {
+      const degA = a.includes('x2') ? 2 : a.includes('x') ? 1 : 0;
+      const degB = b.includes('x2') ? 2 : b.includes('x') ? 1 : 0;
+      return degB - degA;
+    });
+    s = terms.join('');
+    if (s.startsWith('+')) s = s.slice(1);
+  }
+
+  return s;
+}
+
+    function displaySteps(steps) {
+      const stepsContainer = document.getElementById('steps-container');
+      stepsContainer.innerHTML = ''; 
+      
+      const titleDiv = document.createElement('div');
+      titleDiv.className = 'step-title';
+      titleDiv.textContent = 'مراحل حل:';
+      stepsContainer.appendChild(titleDiv);
+      
+      steps.forEach((step, index) => {
+        const stepDiv = document.createElement('div');
+        stepDiv.className = 'step';
+        
+        const stepNumber = document.createElement('span');
+        stepNumber.className = 'step-number';
+        stepNumber.textContent = `${index + 1}) `;
+        
+        const stepContent = document.createElement('span');
+        stepContent.className = 'step-content';
+        stepContent.textContent = step;
+        
+        stepDiv.appendChild(stepNumber);
+        stepDiv.appendChild(stepContent);
+        stepsContainer.appendChild(stepDiv);
+      });
+
+      stepsContainer.style.display = 'block';
+    }
+
+    function checkAndDisplaySolution(userAnswer, correctAnswer, steps) {
+      const feedbackElement = document.getElementById('feedback');
+
+      if (answered) return; 
+
+      // اگر کاربر چیزی وارد نکرده بود
+      if (userAnswer.trim() === "") {
+        return;
+      }
+
+      const normalizedUser = normalize(userAnswer);
+      const normalizedCorrect = normalize(correctAnswer);
+
+      if (normalizedUser === normalizedCorrect) {
+        feedbackElement.innerHTML = "<span style='color:#28a745;'>✅ درست است!</span>";
+        correctAnswers++;
+      } else {
+        feedbackElement.innerHTML = `<span style='color:#dc3545;'>❌ نادرست!<br><br>جواب صحیح: ${correctAnswer}</span>`;
+        wrongAnswers++;
+      }
+
+      updateScoreboard();
+      displaySteps(steps);
+      
+      document.getElementById('next-btn').style.display = 'inline-block';
+      document.getElementById('submit-btn').disabled = true;  
+      answered = true;
+
+      // تغییر ظاهر دکمه کیبورد برای رفتن به مرحله بعد
+      const kbSubmit = document.getElementById('kb-submit');
+      kbSubmit.innerText = "بعدی ↻";
+      kbSubmit.style.backgroundColor = "var(--warning-color)";
+      kbSubmit.style.boxShadow = "0 2px 0 #d68910";
+    }
+
+    function generateSolutionSteps(type, a, b) {
+      if (type === 0) { 
+        return [
+          'از اتحاد مربع دو جمله‌ای استفاده می‌کنیم:',
+          `(${a}x + ${b})² = \n(${a}x)² + 2(${a}x)(${b}) + (${b})²`,
+          ` ${a*a}x² + ${2*a*b}x + ${b*b}`
+        ];
+      } else if (type === 1) { 
+        return [
+          'از اتحاد مزدوج استفاده می‌کنیم:',
+          `(${a}x + ${b})(${a}x - ${b}) = \n(${a}x)² - (${b})²`,
+          ` ${a*a}x² - ${b*b}`
+        ];
+      } else { 
+        return [
+          `برای تجزیه x² + ${a+b}x + ${a*b}:`,
+          `دو عدد پیدا کنید که مجموعشان ${a+b} و حاصل‌ضربشان ${a*b} باشد.`,
+          `جواب نهایی: (x + ${a})(x + ${b})`
+        ];
+      }
+    }
+
+    function generateQuestion() {
+      const type = Math.floor(Math.random() * 3);
+      const a = Math.floor(Math.random() * 9) + 1;
+      const b = Math.floor(Math.random() * 9) + 1;
+      let question, answer;
+
+      if (type === 0) {
+        question = `(${a}x + ${b})<sup>2</sup>`;
+        answer = `${a*a}x<sup>2</sup> + ${2*a*b}x + ${b*b}`;
+      } else if (type === 1) {
+        question = `(${a}x + ${b})(${a}x - ${b})`;
+        answer = `${a*a}x<sup>2</sup> - ${b*b}`;
+      } else {
+        question = `x<sup>2</sup> + ${a+b}x + ${a*b}`;
+        answer = `(x + ${a})(x + ${b})`;
+      }
+
+      return {
+        question,
+        answer,
+        steps: generateSolutionSteps(type, a, b)
+      };
+    }
+
+    function loadQuestion() {
+      currentQuestion = generateQuestion(); 
+      document.getElementById('question-text').innerHTML = currentQuestion.question;
+      document.getElementById('answer-input').value = '';
+      document.getElementById('feedback').innerHTML = '';
+      document.getElementById('steps-container').style.display = 'none';
+      document.getElementById('next-btn').style.display = 'none';
+      document.getElementById('submit-btn').disabled = false; 
+      answered = false; 
+
+      // برگرداندن ظاهر دکمه کیبورد به حالت بررسی
+      const kbSubmit = document.getElementById('kb-submit');
+      kbSubmit.innerText = "بررسی";
+      kbSubmit.style.backgroundColor = "var(--success-color)";
+      kbSubmit.style.boxShadow = "0 2px 0 #1e7e34";
+    }
+
+    // کنترل کیبورد
+    function press(val) {
+      if (answered) return; // اگر سوال پاسخ داده شده دکمه‌ها کار نکنند
+      const input = document.getElementById('answer-input');
+      
+      if (val === 'C') {
+        input.value = '';
+      } else if (val === 'back') {
+        input.value = input.value.slice(0, -1);
+      } else {
+        input.value += val;
+      }
+    }
+
+    function submitFromKeyboard() {
+      if (!answered) {
+        // فراخوانی تابع بررسی
+        checkAndDisplaySolution(
+          document.getElementById('answer-input').value.trim(),
+          currentQuestion.answer,
+          currentQuestion.steps
+        );
+      } else {
+        // رفتن به سوال بعدی
+        loadQuestion();
+      }
+    }
+
+    document.getElementById('submit-btn').onclick = function() {
+      submitFromKeyboard();
+    };
+
+    document.getElementById('next-btn').onclick = function() {
+      loadQuestion();
+    };
+
+    function updateScoreboard() {
+      document.getElementById('correct-score').innerText = correctAnswers;
+      document.getElementById('wrong-score').innerText = wrongAnswers;
+    }
+
+    // تولید اولین سوال هنگام اجرای صفحه
+    currentQuestion = generateQuestion();
+    loadQuestion();
+    updateScoreboard();
+
+  </script>
+</body>
+</html>
