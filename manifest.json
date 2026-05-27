@@ -1,0 +1,26 @@
+{
+  "name": "خوارزمیکا - دستیار هوشمند ریاضی",
+  "short_name": "خوارزمیکا",
+  "description": "برنامه هوشمند آموزش و حل مسائل ریاضی",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f8fafc",
+  "theme_color": "#4f46e5",
+
+  "icons": [
+    {
+      "src": "IMA.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "IMA.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
