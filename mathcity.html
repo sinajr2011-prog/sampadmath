@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>شهر ریاضی پیشرفته - ماجراجویی پویا</title>
+<style>
+/* Reset & Base Variables */
+:root {
+  --primary: #667eea;
+  --primary-dark: #5a67d8;
+  --secondary: #f6e05e;
+  --bg-dark: #0f172a;
+  --text-light: #f8fafc;
+  --glass-bg: rgba(30, 41, 59, 0.85);
+  --border-radius: 16px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+
+body {
+  background: var(--bg-dark);
+  font-family: 'Segoe UI', 'Vazirmatn', Tahoma, Geneva, Verdana, sans-serif;
+  min-height: 100vh;
+  padding: 15px;
+  color: var(--text-light);
+  overflow-x: hidden;
+}
+
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* Header Section */
+.header {
+  text-align: center;
+  margin-bottom: 15px;
+}
+.header h2 {
+  font-size: 2.2rem;
+  background: linear-gradient(135deg, #fff, #a5b4fc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 20px rgba(102,126,234,0.4);
+}
+.header p { color: #cbd5e1; font-size: 0.95rem; margin-top: 5px; }
+
+/* Stats Bar */
+.stats-bar {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+.stat-card {
+  background: var(--glass-bg);
+  padding: 8px 20px;
+  border-radius: 50px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  backdrop-filter: blur(10px);
+  transition: transform 0.2s;
+}
+.stat-card:hover { transform: translateY(-2px); border-color: rgba(255,215,0,0.4); }
+
+/* Canvas Area */
+.canvas-container {
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  border: 2px solid rgba(102,126,234,0.3);
+  position: relative;
+  background: #000;
+  max-width: 100%;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: crosshair;
+  image-rendering: pixelated;
+}
+
+/* XP Progress Bar */
+.progress-container {
+  width: 100%;
+  max-width: 400px;
+  height: 12px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 20px;
+  margin: 15px auto;
+  overflow: hidden;
+  position: relative;
+}
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Action Buttons */
+.controls {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+}
+.btn {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  border: none;
+  padding: 10px 25px;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(102,126,234,0.4);
+}
+.btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+.btn-warning { background: linear-gradient(135deg, #ef4444, #b91c1c); box-shadow: 0 4px 15px rgba(239,68,68,0.4); }
+.btn-info { background: linear-gradient(135deg, #10b981, #059669); box-shadow: 0 4px 15px rgba(16,185,129,0.4); }
+
+/* Modals (Guide, Quiz, Shop) */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(5px);
+}
+.modal-content {
+  background: #1e293b;
+  border-radius: var(--border-radius);
+  padding: 30px;
+  width: 90%;
+  max-width: 550px;
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+  position: relative;
+  color: #f1f5f9;
+}
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
+.modal-close { font-size: 1.5rem; cursor: pointer; color: #94a3b8; transition: color 0.2s; }
+.modal-close:hover { color: #ef4444; }
+
+/* Guide Specific */
+.guide-list { list-style: none; display: flex; flex-direction: column; gap: 15px; }
+.guide-item { display: flex; gap: 15px; align-items: flex-start; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; }
+.guide-icon { font-size: 1.8rem; }
+.guide-text h4 { margin-bottom: 4px; color: #a5b4fc; }
+.guide-text p { font-size: 0.9rem; color: #cbd5e1; line-height: 1.5; }
+
+/* Quiz Answers */
+.answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 20px; }
+.answer-btn { background: #334155; border: 1px solid #475569; color: white; padding: 15px; border-radius: 10px; cursor: pointer; font-size: 1.1rem; transition: all 0.2s; }
+.answer-btn:hover { background: var(--primary); border-color: var(--primary-dark); transform: scale(1.02); }
+
+/* Toast Notifications */
+.toast-container { position: fixed; bottom: 30px; right: 30px; display: flex; flex-direction: column; gap: 10px; z-index: 9999; pointer-events: none; }
+.toast { background: rgba(15, 23, 42, 0.9); color: white; padding: 12px 24px; border-radius: 8px; font-weight: 500; border-right: 4px solid var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.3); opacity: 0; transform: translateX(50px); transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55); display: flex; align-items: center; gap: 10px; }
+.toast.show { opacity: 1; transform: translateX(0); }
+.toast.error { border-right-color: #ef4444; }
+.toast.success { border-right-color: #10b981; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>🌍 شهر ریاضی: بعد سوم (سوالات پویا)</h2>
+        <p>با حل مسائل ریاضی مسیرها را باز کن، مأموریت‌ها را انجام بده و سطح خود را ارتقا بده.</p>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat-card">⭐ <span id="ui-stars">0</span></div>
+        <div class="stat-card">🔓 درهای باز: <span id="ui-doors">0</span>/40</div>
+        <div class="stat-card">🏆 سطح: <span id="ui-level">1</span></div>
+        <div class="stat-card">🎯 مأموریت: <span id="ui-mission">0/0</span></div>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="gameCanvas" width="1400" height="650"></canvas>
+    </div>
+
+    <div class="progress-container">
+        <div class="progress-fill" id="ui-xp-fill"></div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-info" onclick="openGuide()">📖 راهنمای بازی</button>
+        <button class="btn" onclick="openShop()">🛒 فروشگاه کاراکتر</button>
+        <button class="btn btn-warning" onclick="resetGame()">🔄 ریست پیشرفت</button>
+    </div>
+</div>
+
+<!-- Guide Modal -->
+<div id="guideModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>📖 راهنمای کامل بازی</h3>
+            <span class="modal-close" onclick="closeModal('guideModal')">&times;</span>
+        </div>
+        <ul class="guide-list">
+            <li class="guide-item">
+                <span class="guide-icon">🕹️</span>
+                <div class="guide-text">
+                    <h4>حرکت و کنترل</h4>
+                    <p>روی هر نقطه از نقشه کلیک کنید تا کاراکتر به آنجا برود. همچنین می‌توانید از کلیدهای جهت‌نما یا WASD استفاده کنید. (کلید F: روشن/خاموش کردن دنبال کردن دوربین)</p>
+                </div>
+            </li>
+            <li class="guide-item">
+                <span class="guide-icon">🧱</span>
+                <div class="guide-text">
+                    <h4>دیوارها و مسیرها</h4>
+                    <p>دیوارها با ارتفاع مشخص شده‌اند و نمی‌توانید از آن‌ها عبور کنید. باید مسیرهای باز را پیدا کنید.</p>
+                </div>
+            </li>
+            <li class="guide-item">
+                <span class="guide-icon">🚪</span>
+                <div class="guide-text">
+                    <h4>درهای قفل و سوالات هوشمند</h4>
+                    <p>با رسیدن به درها، بر اساس <b>سطح فعلی شما</b> سوالاتی به صورت تصادفی تولید می‌شود. با ارتقا سطح، سوالات نیز سخت‌تر خواهند شد.</p>
+                </div>
+            </li>
+            <li class="guide-item">
+                <span class="guide-icon">🎯</span>
+                <div class="guide-text">
+                    <h4>مأموریت‌های روزانه</h4>
+                    <p>تعداد مشخصی ستاره جمع کنید و درها را باز کنید تا پاداش ویژه‌ای دریافت کنید.</p>
+                </div>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<!-- Quiz Modal -->
+<div id="quizModal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 450px; text-align: center;">
+        <div style="font-size: 0.9rem; color: #94a3b8; margin-bottom: 5px;">سوال سطح <span id="quizLevelIndicator"></span></div>
+        <h3 id="quizQuestion" style="font-size: 1.4rem; margin-bottom: 20px; direction: ltr; font-family: Tahoma;"></h3>
+        <!-- Timer bar -->
+        <div style="height: 6px; background: #334155; border-radius: 4px; overflow: hidden; margin-bottom: 15px;">
+            <div id="quizTimer" style="height: 100%; width: 100%; background: #10b981; transition: width 0.1s linear;"></div>
+        </div>
+        <div id="quizAnswers" class="answers-grid"></div>
+    </div>
+</div>
+
+<!-- Shop Modal -->
+<div id="shopModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>🛒 فروشگاه آیتم‌ها</h3>
+            <span class="modal-close" onclick="closeModal('shopModal')">&times;</span>
+        </div>
+        <p style="margin-bottom: 15px; color: #94a3b8;">از ستاره‌های خود برای شخصی‌سازی کاراکتر استفاده کنید:</p>
+        <div class="answers-grid">
+            <button class="answer-btn" onclick="buyItem('hat', 'cap', 10)">🧢 کلاه کپ (۱۰ ⭐)</button>
+            <button class="answer-btn" onclick="buyItem('hat', 'crown', 20)">👑 تاج پادشاهی (۲۰ ⭐)</button>
+            <button class="answer-btn" onclick="buyItem('color', '#ef4444', 5)">🔴 رنگ کاراکتر قرمز (۵ ⭐)</button>
+            <button class="answer-btn" onclick="buyItem('color', '#10b981', 5)">🟢 رنگ کاراکتر سبز (۵ ⭐)</button>
+        </div>
+    </div>
+</div>
+
+<div id="toastContainer" class="toast-container"></div>
+
+<script>
+/**
+ * بازی شهر ریاضی پیشرفته
+ * سیستم تولید سوالات پویا بر اساس سطح و اعداد رندوم
+ */
+
+// --- Global Configuration & State ---
+const CONFIG = {
+    MAP_W: 40, MAP_H: 40,
+    TOTAL_DOORS: 40,
+    TILE_W: 34, TILE_H: 17,
+    WALL_HEIGHT: 25, 
+    SPEED: 0.06,
+    QUIZ_TIME: 15
+};
+
+const GAME_STATE = {
+    time: 0,
+    stars: 0,
+    doorsOpened: 0,
+    level: 1,
+    xp: 0,
+    shop: { hat: "none", color: "#3b82f6" },
+    daily: { date: "", targetCollect: 20, targetOpen: 10, doneCollect: 0, doneOpen: 0, rewarded: false },
+    map: [], doors: [], starsMap: [], npcs: [], effects: [], path: [],
+    cam: { x: 0, y: 0, follow: true },
+    isModalOpen: false
+};
+
+const player = { x: 2.5, y: 2.5, moving: false, animFrame: 0 };
+
+const uiCache = { stars: -1, doorsOpened: -1, level: -1, xp: -1, mission: "" };
+
+// --- DYNAMIC QUESTION GENERATOR ---
+function generateQuestion(level, type) {
+    let qText = "";
+    let correctAns = 0;
+
+    if (type === "algebra") {
+        if (level <= 2) {
+            // Level 1-2: Basic Addition / Subtraction
+            let a = Math.floor(Math.random() * 10 * level) + 1;
+            let b = Math.floor(Math.random() * 10 * level) + 1;
+            let op = Math.random() > 0.5 ? '+' : '-';
+            if (op === '-' && a < b) [a, b] = [b, a]; // Prevent negative answers
+            qText = `${a} ${op} ${b} = ?`;
+            correctAns = op === '+' ? a + b : a - b;
+        } else if (level <= 5) {
+            // Level 3-5: Simple 1-step Equation
+            let x = Math.floor(Math.random() * 10) + 1;
+            let a = Math.floor(Math.random() * 5) + 2;
+            let b = Math.floor(Math.random() * 20) + 1;
+            let c = a * x + b;
+            qText = `${a}x + ${b} = ${c}  ⇒  x = ?`;
+            correctAns = x;
+        } else if (level <= 8) {
+             // Level 6-8: 2-step Equations with minus
+            let x = Math.floor(Math.random() * 10) + 2;
+            let a = Math.floor(Math.random() * 8) + 2;
+            let b = Math.floor(Math.random() * 15) + 1;
+            let op = Math.random() > 0.5 ? '+' : '-';
+            let c = op === '+' ? (a * x) + b : (a * x) - b;
+            qText = `${a}x ${op} ${b} = ${c}  ⇒  x = ?`;
+            correctAns = x;
+        } else {
+            // Level 9+: Powers and complex operations
+            let x = Math.floor(Math.random() * 6) + 2;
+            let a = Math.floor(Math.random() * 3) + 2;
+            let c = a * Math.pow(x, 2);
+            qText = `${a}x² = ${c}  (x > 0)  ⇒  x = ?`;
+            correctAns = x;
+        }
+    } else { 
+        // Geometry
+        if (level <= 2) {
+            // Level 1-2: Square perimeter / area
+            let a = Math.floor(Math.random() * 10) + 2;
+            if (Math.random() > 0.5) {
+                qText = `محیط مربعی با ضلع ${a} چقدر است؟`;
+                correctAns = a * 4;
+            } else {
+                qText = `مساحت مربعی با ضلع ${a} چقدر است؟`;
+                correctAns = a * a;
+            }
+        } else if (level <= 5) {
+            // Level 3-5: Rectangle perimeter / area
+            let a = Math.floor(Math.random() * 10) + 2;
+            let b = Math.floor(Math.random() * 10) + 2;
+            if (Math.random() > 0.5) {
+                qText = `مساحت مستطیلی با اضلاع ${a} و ${b}:`;
+                correctAns = a * b;
+            } else {
+                qText = `محیط مستطیلی با اضلاع ${a} و ${b}:`;
+                correctAns = 2 * (a + b);
+            }
+        } else {
+            // Level 6+: Circle properties
+            let r = Math.floor(Math.random() * 8) + 2;
+            if (Math.random() > 0.5) {
+                qText = `مساحت دایره با شعاع ${r} (π≈3):`;
+                correctAns = 3 * r * r;
+            } else {
+                qText = `محیط دایره با شعاع ${r} (π≈3):`;
+                correctAns = 2 * 3 * r;
+            }
+        }
+    }
+
+    // Generate 3 random, plausible wrong answers
+    let answers = [correctAns];
+    while(answers.length < 4) {
+        let offset = Math.floor(Math.random() * 10) - 5; // -5 to +5 difference
+        if (offset === 0) offset = 2;
+        
+        let wrong = correctAns + offset;
+        if (level > 5) wrong = correctAns + (offset * Math.floor(Math.random() * 3 + 1));
+        
+        if (wrong < 0) wrong = Math.abs(wrong) + 1; // avoid negative options
+        if (!answers.includes(wrong)) {
+            answers.push(wrong);
+        }
+    }
+
+    // Shuffle options to randomize correct answer position
+    for (let i = answers.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [answers[i], answers[j]] = [answers[j], answers[i]];
+    }
+
+    let correctIndex = answers.indexOf(correctAns);
+
+    return {
+        q: qText,
+        a: answers.map(String),
+        c: correctIndex
+    };
+}
+
+// --- Core Initialization ---
+let ctx, offscreenMap, offscreenBg;
+
+function initGame() {
+    const canvas = document.getElementById("gameCanvas");
+    ctx = canvas.getContext("2d", { alpha: false }); 
+    
+    loadState();
+    generateMap();
+    prerenderBackground(canvas.width, canvas.height);
+    prerenderIsometricMap();
+    
+    window.addEventListener("keydown", handleInput);
+    canvas.addEventListener("mousedown", handleMouseClick);
+    
+    requestAnimationFrame(gameLoop);
+}
+
+// --- Data Management ---
+function saveState() {
+    const saveObj = {
+        stars: GAME_STATE.stars, doorsOpened: GAME_STATE.doorsOpened,
+        level: GAME_STATE.level, xp: GAME_STATE.xp, shop: GAME_STATE.shop,
+        daily: GAME_STATE.daily
+    };
+    localStorage.setItem("MATH_CITY_PRO_SAVE", JSON.stringify(saveObj));
+}
+
+function loadState() {
+    try {
+        const saved = localStorage.getItem("MATH_CITY_PRO_SAVE");
+        if (saved) Object.assign(GAME_STATE, JSON.parse(saved));
+    } catch(e) { console.warn("Save load failed", e); }
+    
+    const today = new Date().toISOString().slice(0, 10);
+    if (GAME_STATE.daily.date !== today) {
+        GAME_STATE.daily = {
+            date: today, 
+            targetCollect: 15 + Math.floor(Math.random() * 10),
+            targetOpen: 8 + Math.floor(Math.random() * 5),
+            doneCollect: 0, doneOpen: 0, rewarded: false
+        };
+        saveState();
+    }
+}
+
+// --- Map Generation ---
+function generateMap() {
+    GAME_STATE.map = Array.from({ length: CONFIG.MAP_H }, () => Array(CONFIG.MAP_W).fill(0));
+    for (let y = 0; y < CONFIG.MAP_H; y++) {
+        for (let x = 0; x < CONFIG.MAP_W; x++) {
+            if (x === 0 || y === 0 || x === CONFIG.MAP_W-1 || y === CONFIG.MAP_H-1 || 
+               (Math.random() < 0.08 && (x > 3 || y > 3))) {
+                GAME_STATE.map[y][x] = 1; 
+            }
+        }
+    }
+    
+    GAME_STATE.doors = [];
+    const types = ["algebra", "geometry"];
+    for (let i = 0; i < CONFIG.TOTAL_DOORS; i++) {
+        let x, y, valid;
+        do {
+            valid = true;
+            x = 2 + Math.floor(Math.random() * (CONFIG.MAP_W - 4));
+            y = 2 + Math.floor(Math.random() * (CONFIG.MAP_H - 4));
+            if (GAME_STATE.map[y][x] === 1) valid = false; 
+            if (x < 4 && y < 4) valid = false; 
+            for (let d of GAME_STATE.doors) {
+                if (Math.abs(d.x - x) < 3 && Math.abs(d.y - y) < 3) valid = false;
+            }
+        } while (!valid);
+        GAME_STATE.doors.push({ x, y, open: false, type: types[i % types.length], cooldown: 0 });
+    }
+    
+    GAME_STATE.starsMap = [];
+    for (let i = 0; i < 50; i++) {
+        let x = 1 + Math.floor(Math.random() * (CONFIG.MAP_W - 2));
+        let y = 1 + Math.floor(Math.random() * (CONFIG.MAP_H - 2));
+        if (GAME_STATE.map[y][x] === 0) GAME_STATE.starsMap.push({ x, y, taken: false });
+    }
+}
+
+function getIsoCoords(x, y) {
+    const sx = (x - y) * CONFIG.TILE_W + document.getElementById("gameCanvas").width/2 + GAME_STATE.cam.x;
+    const sy = (x + y) * CONFIG.TILE_H + 50 + GAME_STATE.cam.y;
+    return { sx, sy };
+}
+
+function prerenderBackground(w, h) {
+    offscreenBg = document.createElement('canvas');
+    offscreenBg.width = w; offscreenBg.height = h;
+    const bCtx = offscreenBg.getContext('2d', { alpha: false });
+    
+    const grad = bCtx.createLinearGradient(0, 0, 0, h);
+    grad.addColorStop(0, "#0f172a");
+    grad.addColorStop(1, "#1e293b");
+    bCtx.fillStyle = grad;
+    bCtx.fillRect(0, 0, w, h);
+    
+    bCtx.fillStyle = "rgba(255,255,255,0.05)";
+    for (let i = 0; i < 200; i++) bCtx.fillRect(Math.random() * w, Math.random() * h, 2, 2);
+}
+
+function prerenderIsometricMap() {
+    offscreenMap = document.createElement('canvas');
+    offscreenMap.width = 2800; offscreenMap.height = 1500;
+    const mCtx = offscreenMap.getContext('2d', { alpha: true });
+    
+    const tw = CONFIG.TILE_W;
+    const th = CONFIG.TILE_H;
+    const wh = CONFIG.WALL_HEIGHT;
+    
+    for (let y = 0; y < CONFIG.MAP_H; y++) {
+        for (let x = 0; x < CONFIG.MAP_W; x++) {
+            const sx = 1400 + (x - y) * tw;
+            const sy = 50 + (x + y) * th;
+            
+            if (GAME_STATE.map[y][x] === 1) {
+                mCtx.fillStyle = "#1e293b";
+                mCtx.beginPath();
+                mCtx.moveTo(sx, sy + th*2); mCtx.lineTo(sx - tw, sy + th);
+                mCtx.lineTo(sx - tw, sy + th - wh); mCtx.lineTo(sx, sy + th*2 - wh);
+                mCtx.fill(); mCtx.stroke();
+                
+                mCtx.fillStyle = "#334155";
+                mCtx.beginPath();
+                mCtx.moveTo(sx, sy + th*2); mCtx.lineTo(sx + tw, sy + th);
+                mCtx.lineTo(sx + tw, sy + th - wh); mCtx.lineTo(sx, sy + th*2 - wh);
+                mCtx.fill(); mCtx.stroke();
+                
+                mCtx.fillStyle = "#475569";
+                mCtx.beginPath();
+                mCtx.moveTo(sx, sy - wh); mCtx.lineTo(sx + tw, sy + th - wh);
+                mCtx.lineTo(sx, sy + th*2 - wh); mCtx.lineTo(sx - tw, sy + th - wh);
+                mCtx.fill();
+                
+                mCtx.strokeStyle = "rgba(255,255,255,0.1)";
+                mCtx.stroke();
+            } else {
+                mCtx.beginPath();
+                mCtx.moveTo(sx, sy); mCtx.lineTo(sx + tw, sy + th);
+                mCtx.lineTo(sx, sy + th*2); mCtx.lineTo(sx - tw, sy + th);
+                mCtx.closePath();
+                
+                const isEven = (x + y) % 2 === 0;
+                mCtx.fillStyle = isEven ? "rgba(71, 85, 105, 0.4)" : "rgba(51, 65, 85, 0.4)";
+                mCtx.fill();
+                mCtx.strokeStyle = "rgba(255,255,255,0.03)";
+                mCtx.stroke();
+            }
+        }
+    }
+}
+
+function movePlayer() {
+    if (GAME_STATE.isModalOpen || !player.moving || GAME_STATE.path.length === 0) return;
+    
+    const target = GAME_STATE.path[0];
+    const tx = target.x + 0.5, ty = target.y + 0.5;
+    const dx = tx - player.x, dy = ty - player.y;
+    const dist = Math.hypot(dx, dy);
+    
+    if (dist < 0.05) {
+        player.x = tx; player.y = ty;
+        GAME_STATE.path.shift();
+        player.moving = GAME_STATE.path.length > 0;
+    } else {
+        const step = Math.min(CONFIG.SPEED, dist);
+        player.x += (dx / dist) * step;
+        player.y += (dy / dist) * step;
+        player.animFrame += 0.35;
+    }
+}
+
+function handleEvents() {
+    const now = GAME_STATE.time;
+    
+    for (let s of GAME_STATE.starsMap) {
+        if (!s.taken && Math.hypot(player.x - (s.x + 0.5), player.y - (s.y + 0.5)) < 0.6) {
+            s.taken = true; 
+            GAME_STATE.stars++; 
+            addXP(5);
+            GAME_STATE.daily.doneCollect++;
+            createEffect(s.x + 0.5, s.y + 0.5, "star");
+            showToast("⭐ +1 ستاره", "success");
+            checkDailyMissions();
+        }
+    }
+    
+    if (!GAME_STATE.isModalOpen) {
+        for (let d of GAME_STATE.doors) {
+            if (!d.open && now >= d.cooldown && Math.hypot(player.x - (d.x + 0.5), player.y - (d.y + 0.5)) < 0.6) {
+                d.cooldown = now + 2; 
+                triggerQuiz(d);
+                break;
+            }
+        }
+    }
+}
+
+function addXP(amount) {
+    GAME_STATE.xp += amount;
+    while (GAME_STATE.xp >= 100) {
+        GAME_STATE.xp -= 100;
+        GAME_STATE.level++;
+        showToast(`🎉 ارتقا به سطح ${GAME_STATE.level}!`, "success");
+    }
+    saveState();
+}
+
+function checkDailyMissions() {
+    const d = GAME_STATE.daily;
+    if (!d.rewarded && d.doneCollect >= d.targetCollect && d.doneOpen >= d.targetOpen) {
+        d.rewarded = true;
+        GAME_STATE.stars += 10;
+        addXP(50);
+        showToast("🏆 مأموریت روزانه تکمیل شد! (+10⭐, +50XP)", "success");
+        saveState();
+    }
+}
+
+// --- Modals & UI ---
+let quizInterval;
+
+function triggerQuiz(doorObj) {
+    GAME_STATE.isModalOpen = true;
+    player.moving = false; 
+    GAME_STATE.path = [];
+    
+    // استفاده از تابع پویای جدید بر اساس سطح بازیکن
+    const q = generateQuestion(GAME_STATE.level, doorObj.type);
+    
+    document.getElementById("quizLevelIndicator").textContent = GAME_STATE.level;
+    document.getElementById("quizQuestion").textContent = q.q;
+    const ansContainer = document.getElementById("quizAnswers");
+    ansContainer.innerHTML = "";
+    
+    q.a.forEach((ansText, idx) => {
+        const btn = document.createElement("button");
+        btn.className = "answer-btn";
+        btn.textContent = ansText;
+        btn.onclick = () => {
+            clearInterval(quizInterval);
+            if (idx === q.c) {
+                doorObj.open = true;
+                GAME_STATE.doorsOpened++;
+                GAME_STATE.daily.doneOpen++;
+                addXP(15);
+                createEffect(doorObj.x + 0.5, doorObj.y + 0.5, "door");
+                showToast("✅ آفرین! در باز شد.", "success");
+                checkDailyMissions();
+            } else {
+                showToast("❌ پاسخ اشتباه بود! دوباره تلاش کن.", "error");
+            }
+            closeModal('quizModal');
+        };
+        ansContainer.appendChild(btn);
+    });
+    
+    document.getElementById("quizModal").style.display = "flex";
+    
+    let timeLeft = CONFIG.QUIZ_TIME;
+    const timerBar = document.getElementById("quizTimer");
+    timerBar.style.width = "100%";
+    
+    quizInterval = setInterval(() => {
+        timeLeft -= 0.1;
+        timerBar.style.width = `${(timeLeft / CONFIG.QUIZ_TIME) * 100}%`;
+        if (timeLeft <= 0) {
+            clearInterval(quizInterval);
+            showToast("⏰ زمان پاسخگویی تمام شد!", "error");
+            closeModal('quizModal');
+        }
+    }, 100);
+}
+
+function openGuide() { document.getElementById("guideModal").style.display = "flex"; }
+function openShop() { document.getElementById("shopModal").style.display = "flex"; }
+function closeModal(id) { document.getElementById(id).style.display = "none"; GAME_STATE.isModalOpen = false; }
+
+function buyItem(type, val, price) {
+    if (GAME_STATE.stars >= price) {
+        GAME_STATE.stars -= price;
+        GAME_STATE.shop[type] = val;
+        saveState();
+        showToast("🛒 خرید با موفقیت انجام شد!", "success");
+        closeModal('shopModal');
+    } else {
+        showToast("⭐ ستاره کافی برای این آیتم نداری!", "error");
+    }
+}
+
+function resetGame() {
+    if (confirm("آیا از ریست کردن کل پیشرفت بازی مطمئن هستید؟")) {
+        localStorage.removeItem("MATH_CITY_PRO_SAVE");
+        location.reload();
+    }
+}
+
+const KEYS = { KeyW: [0,-1], ArrowUp: [0,-1], KeyS: [0,1], ArrowDown: [0,1], KeyA: [-1,0], ArrowLeft: [-1,0], KeyD: [1,0], ArrowRight: [1,0] };
+
+function handleInput(e) {
+    if (GAME_STATE.isModalOpen) return;
+    if (KEYS[e.code]) {
+        const [dx, dy] = KEYS[e.code];
+        setTarget(Math.floor(player.x) + dx, Math.floor(player.y) + dy);
+        e.preventDefault();
+    } else if (e.code === "KeyF") {
+        GAME_STATE.cam.follow = !GAME_STATE.cam.follow;
+        showToast(GAME_STATE.cam.follow ? "🎥 دنبال کردن دوربین: روشن" : "📷 دنبال کردن دوربین: خاموش");
+    }
+}
+
+function handleMouseClick(e) {
+    if (GAME_STATE.isModalOpen) return;
+    showToast("برای حرکت دقیق‌تر از کلیدهای جهت‌نما یا WASD استفاده کنید.");
+}
+
+function setTarget(tx, ty) {
+    tx = Math.max(0, Math.min(CONFIG.MAP_W-1, tx));
+    ty = Math.max(0, Math.min(CONFIG.MAP_H-1, ty));
+    if (GAME_STATE.map[ty][tx] === 1) return; 
+    
+    GAME_STATE.path = [{ x: tx, y: ty }];
+    player.moving = true;
+}
+
+function createEffect(x, y, type) { GAME_STATE.effects.push({ x, y, type, life: 1.0 }); }
+
+function updateEffects() {
+    for (let i = GAME_STATE.effects.length - 1; i >= 0; i--) {
+        GAME_STATE.effects[i].life -= 0.03;
+        if (GAME_STATE.effects[i].life <= 0) GAME_STATE.effects.splice(i, 1);
+    }
+}
+
+function showToast(msg, type="info") {
+    const container = document.getElementById("toastContainer");
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    toast.innerHTML = msg;
+    container.appendChild(toast);
+    
+    void toast.offsetWidth;
+    toast.classList.add("show");
+    
+    setTimeout(() => {
+        toast.classList.remove("show");
+        setTimeout(() => toast.remove(), 400);
+    }, 2500);
+}
+
+function drawDynamicObjects() {
+    const pulse = 5 + Math.sin(GAME_STATE.time * 5) * 2;
+    for (let s of GAME_STATE.starsMap) {
+        if (!s.taken) {
+            const { sx, sy } = getIsoCoords(s.x, s.y);
+            ctx.fillStyle = "rgba(251, 191, 36, 0.3)";
+            ctx.beginPath(); ctx.arc(sx + 17, sy + 15, pulse * 1.5, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#facc15";
+            ctx.beginPath(); ctx.arc(sx + 17, sy + 15, pulse, 0, Math.PI*2); ctx.fill();
+        }
+    }
+    
+    for (let d of GAME_STATE.doors) {
+        const { sx, sy } = getIsoCoords(d.x, d.y);
+        const cx = sx + 17; 
+        const cy = sy + 17;
+        
+        if (d.open) {
+            ctx.fillStyle = "rgba(16, 185, 129, 0.4)";
+            ctx.beginPath(); ctx.ellipse(cx, cy, 15, 8, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#10b981"; ctx.font = "16px Arial"; ctx.textAlign="center";
+            ctx.fillText("✓", cx, cy + 5);
+        } else {
+            ctx.fillStyle = "rgba(0,0,0,0.5)"; 
+            ctx.beginPath(); ctx.ellipse(cx, cy+5, 12, 6, 0, 0, Math.PI*2); ctx.fill();
+            
+            const grad = ctx.createLinearGradient(0, cy-25, 0, cy);
+            grad.addColorStop(0, "#f97316"); grad.addColorStop(1, "#c2410c");
+            ctx.fillStyle = grad;
+            ctx.fillRect(cx - 12, cy - 25, 24, 30);
+            
+            ctx.fillStyle = "#fff"; ctx.font = "bold 16px Arial"; ctx.textAlign="center";
+            ctx.fillText("?", cx, cy - 5);
+        }
+    }
+    
+    const { sx: px, sy: py } = getIsoCoords(player.x - 0.5, player.y - 0.5);
+    const pcx = px + 17;
+    const pcy = py + 17;
+    
+    ctx.fillStyle = "rgba(0,0,0,0.4)";
+    ctx.beginPath(); ctx.ellipse(pcx, pcy + 5, 12, 6, 0, 0, Math.PI*2); ctx.fill();
+    
+    const bob = Math.sin(player.animFrame) * 2;
+    
+    ctx.fillStyle = GAME_STATE.shop.color;
+    ctx.beginPath(); ctx.arc(pcx, pcy - 10 + bob, 12, 0, Math.PI*2); ctx.fill();
+    
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(pcx - 4, pcy - 12 + bob, 3, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(pcx + 4, pcy - 12 + bob, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#0f172a";
+    ctx.beginPath(); ctx.arc(pcx - 4, pcy - 12 + bob, 1.5, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(pcx + 4, pcy - 12 + bob, 1.5, 0, Math.PI*2); ctx.fill();
+    
+    if (GAME_STATE.shop.hat === "cap") {
+        ctx.fillStyle = "#ef4444"; ctx.fillRect(pcx - 10, pcy - 22 + bob, 20, 8);
+        ctx.fillRect(pcx - 4, pcy - 25 + bob, 8, 4);
+    } else if (GAME_STATE.shop.hat === "crown") {
+        ctx.fillStyle = "#fbbf24"; ctx.fillRect(pcx - 10, pcy - 22 + bob, 20, 6);
+        ctx.beginPath(); ctx.moveTo(pcx-10, pcy-22+bob); ctx.lineTo(pcx-10, pcy-28+bob); ctx.lineTo(pcx-5, pcy-22+bob);
+        ctx.lineTo(pcx, pcy-30+bob); ctx.lineTo(pcx+5, pcy-22+bob); ctx.lineTo(pcx+10, pcy-28+bob);
+        ctx.lineTo(pcx+10, pcy-22+bob); ctx.fill();
+    }
+    
+    for (let e of GAME_STATE.effects) {
+        const { sx: ex, sy: ey } = getIsoCoords(e.x - 0.5, e.y - 0.5);
+        ctx.fillStyle = `rgba(16, 185, 129, ${e.life})`;
+        if(e.type === "star") ctx.fillStyle = `rgba(251, 191, 36, ${e.life})`;
+        ctx.beginPath(); ctx.arc(ex+17, ey+17, 15 * (1 - e.life), 0, Math.PI*2); ctx.fill();
+    }
+}
+
+function updateCamera() {
+    const canvas = document.getElementById("gameCanvas");
+    if (GAME_STATE.cam.follow) {
+        GAME_STATE.cam.x = -(player.x - player.y) * CONFIG.TILE_W;
+        GAME_STATE.cam.y = -(player.x + player.y) * CONFIG.TILE_H + (canvas.height/2 - 100);
+    }
+    GAME_STATE.cam.x = Math.max(-1000, Math.min(1000, GAME_STATE.cam.x));
+    GAME_STATE.cam.y = Math.max(-800, Math.min(800, GAME_STATE.cam.y));
+}
+
+function renderUI() {
+    if (GAME_STATE.stars !== uiCache.stars) { document.getElementById("ui-stars").innerText = GAME_STATE.stars; uiCache.stars = GAME_STATE.stars; }
+    if (GAME_STATE.doorsOpened !== uiCache.doorsOpened) { document.getElementById("ui-doors").innerText = GAME_STATE.doorsOpened; uiCache.doorsOpened = GAME_STATE.doorsOpened; }
+    if (GAME_STATE.level !== uiCache.level) { document.getElementById("ui-level").innerText = GAME_STATE.level; uiCache.level = GAME_STATE.level; }
+    if (GAME_STATE.xp !== uiCache.xp) { document.getElementById("ui-xp-fill").style.width = GAME_STATE.xp + "%"; uiCache.xp = GAME_STATE.xp; }
+    
+    const d = GAME_STATE.daily;
+    const missionStr = `${d.doneCollect}/${d.targetCollect}⭐ | ${d.doneOpen}/${d.targetOpen}🚪`;
+    if (missionStr !== uiCache.mission) { 
+        const el = document.getElementById("ui-mission");
+        el.innerText = missionStr;
+        if(d.rewarded) el.style.color = "#10b981";
+        uiCache.mission = missionStr; 
+    }
+}
+
+let lastTime = 0;
+function gameLoop(now) {
+    requestAnimationFrame(gameLoop);
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    if (dt <= 0) return;
+    lastTime = now;
+    GAME_STATE.time += dt;
+    
+    movePlayer();
+    updateEffects();
+    handleEvents();
+    updateCamera();
+    renderUI();
+    
+    ctx.drawImage(offscreenBg, 0, 0);
+    
+    const mapDrawX = document.getElementById("gameCanvas").width/2 + GAME_STATE.cam.x - 1400;
+    const mapDrawY = GAME_STATE.cam.y;
+    ctx.drawImage(offscreenMap, mapDrawX, mapDrawY);
+    
+    drawDynamicObjects();
+}
+
+window.onload = initGame;
+</script>
+</body>
+</html>
