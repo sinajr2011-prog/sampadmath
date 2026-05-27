@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>دستیار هوش مصنوعی | خوارزمیکا</title>
+  <!-- Font & Icon -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
+  <!-- KaTeX -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+  <!-- Tesseract.js برای OCR -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    :root {
+      --primary:#6366f1; --primary-dark:#4f46e5; --secondary:#8b5cf6;
+      --accent:#06b6d4; --success:#10b981; --danger:#ef4444;
+      --dark:#1e293b; --darker:#0f172a; --light:#f8fafc; --gray:#94a3b8;
+      --gradient-primary: linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899);
+      --glass: rgba(255,255,255,0.08); --glass-border: rgba(255,255,255,0.12);
+      --radius: 16px; --radius-lg: 24px;
+      --shadow-glow: 0 0 30px rgba(99,102,241,0.3);
+    }
+    *{margin:0;padding:0;box-sizing:border-box;font-family:'Vazirmatn',sans-serif;}
+    body{
+      background: radial-gradient(circle at 20% 30%, rgba(99,102,241,0.15), transparent 55%),
+                  radial-gradient(circle at 80% 70%, rgba(236,72,153,0.15), transparent 45%),
+                  linear-gradient(135deg, #0f172a, #1e293b);
+      color: var(--light); min-height: 100vh; display: flex; flex-direction: column;
+    }
+    .container{
+      width: 100%; max-width: 900px; margin: 0 auto; padding: 20px;
+      display: flex; flex-direction: column; height: 100vh;
+    }
+    /* Header */
+    header{
+      background: var(--gradient-primary); text-align: center; padding: 18px 20px;
+      border-radius: var(--radius-lg); box-shadow: var(--shadow-glow);
+      margin-bottom: 20px; position: relative; overflow: hidden;
+    }
+    header h1{font-size: 1.6rem; display: flex; align-items: center; justify-content: center; gap: 10px;}
+    /* Chat Box */
+    .chatbox{
+      flex:1; display: flex; flex-direction: column;
+      background: var(--glass); border: 1px solid var(--glass-border);
+      backdrop-filter: blur(14px); border-radius: var(--radius-lg);
+      overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+    .messages{
+      flex:1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px;
+    }
+    .message{display: flex; gap: 12px; align-items: flex-start; animation: fadeIn .3s ease;}
+    .message.user{justify-content: flex-end;}
+    .avatar{
+      width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+      background: var(--gradient-primary); color: #fff; font-weight: bold; flex-shrink: 0;
+    }
+    .bubble{
+      max-width: 72%; padding: 12px 16px; border-radius: 18px;
+      background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+      line-height: 1.75; font-size: 0.93rem; word-wrap: break-word;
+    }
+    .message.user .bubble{
+      background: var(--gradient-primary); border: none; color: white;
+    }
+    .bubble p{margin: 6px 0;}
+    .bubble .katex{font-size: 1.05em;}
+    /* Quick Actions */
+    .actions-bar{
+      display: flex; gap: 10px; flex-wrap: wrap; padding: 10px 20px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .actions-bar button{
+      background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+      color: var(--light); padding: 8px 14px; border-radius: 20px;
+      cursor: pointer; font-size: 0.82rem; transition: all 0.2s;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .actions-bar button:hover, .actions-bar button.active{
+      background: rgba(99,102,241,0.25); border-color: var(--primary);
+    }
+    /* Input Area */
+    .input-area{
+      display: flex; gap: 10px; padding: 14px 20px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      align-items: center;
+    }
+    .input-area input{
+      flex:1; padding: 12px 16px; border-radius: 30px; border:1px solid rgba(255,255,255,0.2);
+      background: rgba(255,255,255,0.05); color: #fff; font-size: 0.93rem; outline: none;
+    }
+    .input-area input:focus{border-color: var(--accent);}
+    .input-area button{
+      width: 44px; height: 44px; border-radius: 50%; background: var(--gradient-primary);
+      border: none; color: #fff; font-size: 1.2rem; cursor: pointer; transition: transform 0.2s;
+    }
+    .input-area button:hover{transform: scale(1.05);}
+    .file-btn{
+      background: none; border: 1px dashed rgba(255,255,255,0.3); border-radius: 12px;
+      padding: 10px 14px; font-size: 0.85rem; color: var(--gray); cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .file-btn:hover{background: rgba(255,255,255,0.05);}
+    #fileInput{display: none;}
+    .typing-indicator{display: flex; gap: 4px; align-items: center; padding: 8px 0;}
+    .typing-indicator span{ width: 8px; height: 8px; border-radius: 50%; background: #a78bfa; animation: bounce 1.2s infinite;}
+    .typing-indicator span:nth-child(2){animation-delay:0.2s;}
+    .typing-indicator span:nth-child(3){animation-delay:0.4s;}
+    @keyframes bounce{
+      0%,80%,100%{transform:translateY(0);} 40%{transform:translateY(-8px);}
+    }
+    @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+    .back-link{
+      text-align: center; margin-top: 12px;
+    }
+    .back-link a{color: var(--gray); text-decoration: none; font-size: 0.9rem;}
+    @media (max-width:600px){.bubble{max-width:90%;}}
+  </style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1><i class="fa-solid fa-brain"></i> دستیار هوش مصنوعی خوارزمیکا</h1>
+  </header>
+
+  <div class="chatbox">
+    <div class="messages" id="messages">
+      <div class="message ai">
+        <div class="avatar"><i class="fa-solid fa-robot"></i></div>
+        <div class="bubble">
+          <p>سلام! 👋 من معلم هوش مصنوعی خوارزمیکا هستم.</p>
+          <p>می‌تونی متن یا <b>عکس مسئله</b> (با دکمه آپلود) برام بفرستی تا برات حل کنم.</p>
+          <p>چندتا راهنما:</p>
+          <ul style="padding-right:20px; margin:6px 0;">
+            <li>حل معادله: «x^2 - 5x + 6 = 0»</li>
+            <li>آپلود عکس از صفحه کتاب</li>
+            <li>تولید سوال تستی</li>
+            <li>بررسی اشتباهاتت</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick actions -->
+    <div class="actions-bar">
+      <button onclick="sendQuick('حل کن: x^2 - 4x + 3 = 0')"><i class="fa-solid fa-square-root-variable"></i> حل معادله</button>
+      <button onclick="sendQuick('قضیه فیثاغورس رو توضیح بده')"><i class="fa-solid fa-graduation-cap"></i> توضیح مفهوم</button>
+      <button onclick="sendQuick('چند سوال تستی از احتمال پایه نهم بده')"><i class="fa-solid fa-pen"></i> تولید سوال</button>
+      <button onclick="sendQuick('آیا جواب معادله 2x+3=7 رو 2 گرفتم، درسته؟')"><i class="fa-solid fa-check-double"></i> بررسی خطا</button>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area">
+      <label class="file-btn" for="fileInput" title="آپلود عکس یا PDF">
+        <i class="fa-solid fa-paperclip"></i> آپلود
+      </label>
+      <input type="file" id="fileInput" accept="image/jpeg,image/png,image/gif,application/pdf" />
+      <input type="text" id="userInput" placeholder="سوال یا درخواستت رو بنویس..." onkeydown="if(event.key==='Enter')sendMessage()" />
+      <button onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+  </div>
+  <div class="back-link">
+    <a href="خوارزمی.html"><i class="fa-solid fa-arrow-right"></i> بازگشت به صفحه اصلی</a>
+  </div>
+</div>
+
+<script>
+  // ===================== تنظیمات =====================
+  const API_ENDPOINT = 'https://kharazmika.ir/api-proxy.php';  // فایل PHP که ساختی
+  // اگه هنوز PHP رو راه ننداختی، USE_MOCK = true بذار تا با پاسخ‌های پیش‌فرض کار کنه
+  const USE_MOCK = false; 
+
+  const messagesDiv = document.getElementById('messages');
+  const userInput = document.getElementById('userInput');
+  const fileInput = document.getElementById('fileInput');
+
+  // مدیریت upload
+  fileInput.addEventListener('change', handleFileUpload);
+
+  // ===================== OCR با Tesseract.js =====================
+  async function extractTextFromImage(file) {
+    const worker = await Tesseract.createWorker('eng+fas', 1, {
+      logger: m => {
+        if (m.status === 'recognizing text') {
+          // progress could be shown
+        }
+      }
+    });
+    const { data: { text } } = await worker.recognize(file);
+    await worker.terminate();
+    return text.trim();
+  }
+
+  async function handleFileUpload(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // show user message
+    const userText = `[📎 ${file.name}]`;
+    addMessage(userText, 'user');
+    
+    // show processing
+    const thinkId = addThinking();
+    
+    try {
+      let extractedText = '';
+      if (file.type === 'application/pdf') {
+        // For PDF, we can use PDF.js to extract text (basic)
+        extractedText = await extractTextFromPDF(file);
+      } else {
+        // image
+        extractedText = await extractTextFromImage(file);
+      }
+      
+      removeThinking(thinkId);
+      
+      if (!extractedText || extractedText.length < 5) {
+        addMessage('متأسفانه نتونستم متنی از فایل استخراج کنم. لطفاً خودت سوال رو تایپ کن.', 'ai');
+        return;
+      }
+      
+      // show extracted text
+      addMessage(`🔍 متن استخراج‌شده: "${extractedText}" \n لطفاً صبر کن تا بررسی کنم...`, 'ai');
+      
+      // send to AI
+      const finalPrompt = `متن زیر از یک فایل (عکس یا PDF) استخراج شده. لطفاً اگر سوال ریاضی یا درخواستی در آن هست، پاسخ بده:\n\n${extractedText}`;
+      const response = await callAI(finalPrompt);
+      addMessage(response, 'ai');
+    } catch (err) {
+      removeThinking(thinkId);
+      addMessage('❌ خطایی در پردازش فایل پیش آمد. دوباره تلاش کن.', 'ai');
+    }
+    
+    fileInput.value = ''; // reset
+  }
+
+  async function extractTextFromPDF(file) {
+    // ساده: با PDF.js (اگر لازم شد، کتابخانه رو ایمپورت کن)
+    // در این نسخه، از روش آسون‌تر: فایل PDF رو به صورت موقت به تصویر تبدیل و OCR انجام بده
+    // اما برای سادگی، فعلاً اگه PDF بود، فقط میگیم پشتیبانی نمی‌شه
+    return '';
+  }
+
+  // ===================== API =====================
+  async function callAI(userMessage) {
+    if (USE_MOCK) return mockAI(userMessage);
+    
+    try {
+      const systemPrompt = `شما یک معلم ریاضی حرفه‌ای، مهربان و دقیق به نام "خوارزمی" هستید. به فارسی روان و ساده پاسخ بده.
+      - فرمول‌ها را داخل \\( ... \\) بگذار.
+      - گام‌به‌گام توضیح بده.
+      - اگر کاربر اشتباه کرد، با ملایمت راهنمایی کن.
+      - اگر سوال غیر ریاضی پرسید، مودبانه بگو فقط ریاضی بلدی.`;
+      
+      const response = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userMessage }
+          ],
+          temperature: 0.5
+        })
+      });
+      if (!response.ok) throw new Error('Network error');
+      const data = await response.json();
+      if (data.error) throw new Error(data.error.message || data.error);
+      return data.choices[0].message.content;
+    } catch (e) {
+      return '⚠️ خطا در ارتباط با سرور. لطفاً بعداً تلاش کن.';
+    }
+  }
+
+  // پاسخ‌های پیش‌فرض (وقتی USE_MOCK = true)
+  function mockAI(msg) {
+    const m = msg.toLowerCase();
+    if (m.includes('x^2') || m.includes('حل') || m.includes('معادله'))
+      return 'خب، معادله \\(x^2 - 5x + 6 = 0\\) رو به روش تجزیه حل می‌کنیم:\n\\((x-2)(x-3)=0\\)\nپس:\n\\(x=2\\) یا \\(x=3\\).';
+    if (m.includes('فیثاغورس'))
+      return 'قضیه فیثاغورس: \\(a^2 + b^2 = c^2\\) که \\(c\\) وتر مثلث قائم‌الزاویه است.';
+    return 'متوجه نشدم. لطفاً واضح‌تر بپرس.';
+  }
+
+  // ===================== UI =====================
+  function addMessage(text, sender) {
+    const div = document.createElement('div');
+    div.className = `message ${sender}`;
+    const avatarIcon = sender === 'user' ? '<i class="fa-solid fa-user"></i>' : '<i class="fa-solid fa-robot"></i>';
+    div.innerHTML = `
+      <div class="avatar">${avatarIcon}</div>
+      <div class="bubble">${renderMath(text)}</div>
+    `;
+    messagesDiv.appendChild(div);
+    // re-render KaTeX
+    renderMathInElement(div.querySelector('.bubble'));
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+  }
+
+  function renderMath(text) {
+    return text
+      .replace(/\\\((.+?)\\\)/g, (_, formula) => {
+        try { return katex.renderToString(formula, { throwOnError: false }); } catch { return _; }
+      })
+      .replace(/\n/g, '<br>');
+  }
+
+  function renderMathInElement(el) {
+    try { renderMathInElement(el, { delimiters: [{left: '\\(', right: '\\)', display: false}] }); } catch(e) {}
+  }
+
+  let thinkCount = 0;
+  function addThinking() {
+    const id = 'think-' + (++thinkCount);
+    const div = document.createElement('div');
+    div.className = 'message ai';
+    div.id = id;
+    div.innerHTML = `<div class="avatar"><i class="fa-solid fa-robot"></i></div><div class="bubble"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
+    messagesDiv.appendChild(div);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    return id;
+  }
+  function removeThinking(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+  }
+
+  function sendMessage() {
+    const text = userInput.value.trim();
+    if (!text) return;
+    addMessage(text, 'user');
+    userInput.value = '';
+    
+    const thinkId = addThinking();
+    callAI(text).then(res => {
+      removeThinking(thinkId);
+      addMessage(res, 'ai');
+    });
+  }
+
+  function sendQuick(msg) {
+    userInput.value = msg;
+    sendMessage();
+  }
+</script>
+</body>
+</html>
