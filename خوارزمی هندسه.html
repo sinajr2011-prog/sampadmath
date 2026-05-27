@@ -1,0 +1,1532 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>آزمایشگاه هندسه | ترسیم و محاسبه</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lalezar&family=Vazirmatn:wght@300;400;600;700;800&display=swap" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.1/css/all.min.css" />
+ <style>
+    :root {
+      --bg-1: #f5f7ff;
+      --bg-2: #ecf6ff;
+      --ink: #0f172a;
+      --muted: #5b6b8c;
+      --primary: #1f8ef1;
+      --primary-2: #4cc9f0;
+      --accent: #ff8a5c;
+      --card: #ffffff;
+      --stroke: #e3e9f5;
+      --shadow: 0 16px 40px rgba(31, 142, 241, 0.12);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: "Vazirmatn", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: radial-gradient(circle at top right, #ffffff 0%, var(--bg-1) 35%, var(--bg-2) 100%);
+    }
+
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image: radial-gradient(rgba(31, 142, 241, 0.08) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.4;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(12px);
+      background: rgba(255, 255, 255, 0.88);
+      border-bottom: 1px solid var(--stroke);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 32px;
+      gap: 20px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand .logo {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 1.4rem;
+      box-shadow: 0 10px 25px rgba(31, 142, 241, 0.3);
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-family: "Lalezar", sans-serif;
+      font-size: 1.6rem;
+    }
+
+    .brand p {
+      margin: 2px 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .chip-btn {
+      border: 1px solid var(--stroke);
+      background: var(--card);
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-weight: 600;
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: 0.2s ease;
+      box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+    }
+
+    .chip-btn:hover {
+      transform: translateY(-2px);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .layout {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: 96px minmax(0, 1fr) 320px;
+      gap: 22px;
+      padding: 24px 32px 80px;
+    }
+
+    .toolbox {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .tool-btn {
+      width: 100%;
+      border: 1px solid transparent;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 16px;
+      padding: 12px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.78rem;
+      color: var(--muted);
+      cursor: pointer;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+      transition: 0.2s ease;
+    }
+
+    .tool-btn i {
+      font-size: 1.1rem;
+    }
+
+    .tool-btn.active {
+      border-color: var(--primary);
+      color: var(--primary);
+      transform: translateY(-3px);
+      box-shadow: 0 16px 30px rgba(31, 142, 241, 0.2);
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      box-shadow: var(--shadow);
+    }
+
+    .board {
+      display: flex;
+      flex-direction: column;
+      min-height: 70vh;
+      overflow: hidden;
+    }
+
+    .board-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--stroke);
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .board-title {
+      font-weight: 700;
+      font-size: 1.05rem;
+    }
+
+    .board-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      background: #f8fafc;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+    }
+
+    .toggle input {
+      accent-color: var(--primary);
+    }
+
+    .range {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #f8fafc;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--stroke);
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .range input {
+      accent-color: var(--primary);
+    }
+
+    .canvas-wrap {
+      position: relative;
+      flex: 1;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(243, 247, 255, 0.9));
+    }
+
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+    }
+
+    canvas.panning {
+      cursor: grab;
+    }
+
+    .canvas-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .coords {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      background: rgba(15, 23, 42, 0.78);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.18);
+    }
+
+    .hint {
+      position: absolute;
+      bottom: 14px;
+      left: 14px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--stroke);
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+      max-width: 240px;
+    }
+
+    .sidepanel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel {
+      padding: 16px;
+    }
+
+    .panel-title {
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .object-list {
+      display: grid;
+      gap: 10px;
+      max-height: 360px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .object-group {
+      background: #f8fafc;
+      border: 1px dashed var(--stroke);
+      border-radius: 12px;
+      padding: 10px;
+    }
+
+    .object-group-title {
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    .object-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 10px;
+      background: #fff;
+      border-radius: 10px;
+      border: 1px solid var(--stroke);
+    }
+
+    .object-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+    }
+
+    .object-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    .object-meta {
+      color: var(--muted);
+      font-size: 0.78rem;
+    }
+
+    .object-actions {
+      display: inline-flex;
+      gap: 6px;
+    }
+
+    .icon-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      background: #fff;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .icon-btn:hover {
+      color: var(--primary);
+      border-color: var(--primary);
+    }
+
+    .help-list {
+      display: grid;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.86rem;
+      line-height: 1.6;
+    }
+
+    .stats {
+      display: grid;
+      gap: 8px;
+      font-size: 0.86rem;
+      color: var(--muted);
+    }
+
+    .stats strong {
+      color: var(--ink);
+    }
+
+    .bottombar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.92);
+      border-top: 1px solid var(--stroke);
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      z-index: 10;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .status-pill {
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    @media (max-width: 1100px) {
+      .layout {
+        grid-template-columns: 80px 1fr;
+      }
+
+      .sidepanel {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+
+      .panel {
+        flex: 1;
+        min-width: 240px;
+      }
+    }
+
+    @media (max-width: 860px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .toolbox {
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+
+      .tool-btn {
+        flex: 1 1 90px;
+      }
+
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .bottombar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  
+ </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">Q</div>
+      <div>
+        <h1>آزمایشگاه هندسه خوارزمیکا</h1>
+        <p>ترسیم دقیق، محاسبه مساحت و بررسی روابط هندسی مثل یک میزکار جئوجبرا</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button class="chip-btn" id="undoBtn" type="button"><i class="fa-solid fa-rotate-left"></i> بازگشت</button>
+      <button class="chip-btn" id="redoBtn" type="button"><i class="fa-solid fa-rotate-right"></i> جلو</button>
+      <button class="chip-btn" id="exportBtn" type="button"><i class="fa-solid fa-file-image"></i> خروجی PNG</button>
+      <button class="chip-btn" id="clearBtn" type="button"><i class="fa-solid fa-trash"></i> پاکسازی</button>
+      <button class="chip-btn"><a href="خوارزمی.html">بازگشت به صفحه اصلی</a></button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <aside class="toolbox card">
+      <button class="tool-btn active" data-tool="select" type="button"><i class="fa-solid fa-arrow-pointer"></i>انتخاب</button>
+      <button class="tool-btn" data-tool="pan" type="button"><i class="fa-solid fa-hand"></i>جابجایی</button>
+      <button class="tool-btn" data-tool="point" type="button"><i class="fa-solid fa-circle-dot"></i>نقطه</button>
+      <button class="tool-btn" data-tool="segment" type="button"><i class="fa-solid fa-minus"></i>پاره‌خط</button>
+      <button class="tool-btn" data-tool="line" type="button"><i class="fa-solid fa-slash"></i>خط</button>
+      <button class="tool-btn" data-tool="polygon" type="button"><i class="fa-solid fa-draw-polygon"></i>چندضلعی</button>
+      <button class="tool-btn" data-tool="circle" type="button"><i class="fa-regular fa-circle"></i>دایره</button>
+      <button class="tool-btn" data-tool="measure" type="button"><i class="fa-solid fa-ruler-combined"></i>اندازه‌گیری</button>
+      <button class="tool-btn" data-tool="erase" type="button"><i class="fa-solid fa-eraser"></i>حذف</button>
+    </aside>
+
+    <section class="board card">
+      <div class="board-header">
+        <div class="board-title">صفحه ترسیم تعاملی</div>
+        <div class="board-controls">
+          <label class="toggle"><input type="checkbox" id="gridToggle" checked /> نمایش شبکه</label>
+          <label class="toggle"><input type="checkbox" id="snapToggle" checked /> چسبیدن به شبکه</label>
+          <label class="toggle"><input type="checkbox" id="labelToggle" checked /> نمایش برچسب‌ها</label>
+          <div class="range">زوم <input type="range" min="18" max="60" value="32" id="zoomRange" /></div>
+        </div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="geoCanvas"></canvas>
+        <div class="canvas-overlay">
+          <div class="coords" id="coords">x: 0 , y: 0</div>
+          <div class="hint" id="hint">ابزار نقطه: کلیک کنید تا یک نقطه جدید بسازید.</div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="sidepanel">
+      <div class="panel card">
+        <div class="panel-title">اشیای ترسیمی</div>
+        <div class="object-list" id="objectList"></div>
+      </div>
+
+      <div class="panel card">
+        <div class="panel-title">راهنمای سریع</div>
+        <div class="help-list" id="toolHelp"></div>
+      </div>
+
+      <div class="panel card">
+        <div class="panel-title">وضعیت</div>
+        <div class="stats">
+          <div>ابزار فعال: <strong id="activeToolName">انتخاب</strong></div>
+          <div>نقاط: <strong id="pointCount">0</strong></div>
+          <div>شکل‌ها: <strong id="shapeCount">0</strong></div>
+          <div>مساحت آخرین چندضلعی: <strong id="lastArea">-</strong></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <div class="bottombar">
+    <div>کلیدها: Space برای پن، Esc برای لغو ترسیم، Delete برای حذف انتخاب‌شده</div>
+    <div class="status-pill" id="statusMsg">آماده ترسیم</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("geoCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const ui = {
+      toolButtons: Array.from(document.querySelectorAll(".tool-btn")),
+      gridToggle: document.getElementById("gridToggle"),
+      snapToggle: document.getElementById("snapToggle"),
+      labelToggle: document.getElementById("labelToggle"),
+      zoomRange: document.getElementById("zoomRange"),
+      coords: document.getElementById("coords"),
+      hint: document.getElementById("hint"),
+      objectList: document.getElementById("objectList"),
+      toolHelp: document.getElementById("toolHelp"),
+      activeToolName: document.getElementById("activeToolName"),
+      pointCount: document.getElementById("pointCount"),
+      shapeCount: document.getElementById("shapeCount"),
+      lastArea: document.getElementById("lastArea"),
+      statusMsg: document.getElementById("statusMsg"),
+      undoBtn: document.getElementById("undoBtn"),
+      redoBtn: document.getElementById("redoBtn"),
+      exportBtn: document.getElementById("exportBtn"),
+      clearBtn: document.getElementById("clearBtn")
+    };
+
+    const palette = [
+      "#1f8ef1",
+      "#4cc9f0",
+      "#ff8a5c",
+      "#5c6ac4",
+      "#00b894",
+      "#f6b93b",
+      "#a55eea",
+      "#ff6b81"
+    ];
+
+    const model = {
+      points: [],
+      segments: [],
+      lines: [],
+      polygons: [],
+      circles: [],
+      measures: [],
+      counters: {
+        point: 0,
+        segment: 0,
+        line: 0,
+        polygon: 0,
+        circle: 0,
+        measure: 0
+      }
+    };
+
+    const view = {
+      unit: 32,
+      offsetX: 0,
+      offsetY: 0,
+      showGrid: true,
+      snap: true,
+      showLabels: true
+    };
+
+    let activeTool = "select";
+    let hoverWorld = { x: 0, y: 0 };
+    let draggingPointId = null;
+    let isPanning = false;
+    let panStart = { x: 0, y: 0 };
+    let draft = null;
+    let selection = null;
+    let spacePressed = false;
+    let lastPolygonArea = null;
+
+    const history = [];
+    const future = [];
+
+    const toolHints = {
+      select: "انتخاب: روی نقطه کلیک و درگ کنید تا جابه‌جا شود. روی شکل کلیک کنید تا انتخاب شود.",
+      pan: "جابجایی: با درگ، صفحه ترسیم را پن کنید.",
+      point: "نقطه: یک کلیک، یک نقطه جدید با برچسب خودکار.",
+      segment: "پاره‌خط: دو کلیک برای ساخت پاره‌خط بین دو نقطه.",
+      line: "خط: دو کلیک برای ساخت خط نامتناهی از دو نقطه.",
+      polygon: "چندضلعی: رأس‌ها را کلیک کنید؛ برای بستن روی نقطه اول کلیک یا Esc بزنید.",
+      circle: "دایره: ابتدا مرکز، سپس یک نقطه روی محیط را کلیک کنید.",
+      measure: "اندازه‌گیری: دو کلیک برای محاسبه فاصله و نمایش برچسب.",
+      erase: "حذف: روی هر شیء کلیک کنید تا حذف شود."
+    };
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
+      requestRender();
+    }
+
+    const resizeObserver = new ResizeObserver(resizeCanvas);
+    resizeObserver.observe(canvas);
+
+    function toScreen(point) {
+      const cx = canvas.clientWidth / 2;
+      const cy = canvas.clientHeight / 2;
+      return {
+        x: point.x * view.unit + cx + view.offsetX,
+        y: -point.y * view.unit + cy + view.offsetY
+      };
+    }
+
+    function toWorld(screen) {
+      const cx = canvas.clientWidth / 2;
+      const cy = canvas.clientHeight / 2;
+      return {
+        x: (screen.x - cx - view.offsetX) / view.unit,
+        y: -(screen.y - cy - view.offsetY) / view.unit
+      };
+    }
+
+    function formatNumber(value) {
+      return value.toLocaleString("fa-IR", { maximumFractionDigits: 2 });
+    }
+
+    function pointLabel(index) {
+      const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      let n = index;
+      let label = "";
+      do {
+        label = alphabet[n % 26] + label;
+        n = Math.floor(n / 26) - 1;
+      } while (n >= 0);
+      return label;
+    }
+
+    function nextColor(index) {
+      return palette[index % palette.length];
+    }
+
+    function pushHistory() {
+      history.push(JSON.stringify(model));
+      if (history.length > 80) history.shift();
+      future.length = 0;
+    }
+
+    function restore(snapshot) {
+      const data = JSON.parse(snapshot);
+      model.points = data.points || [];
+      model.segments = data.segments || [];
+      model.lines = data.lines || [];
+      model.polygons = data.polygons || [];
+      model.circles = data.circles || [];
+      model.measures = data.measures || [];
+      model.counters = data.counters || { point: 0, segment: 0, line: 0, polygon: 0, circle: 0, measure: 0 };
+      selection = null;
+      draft = null;
+      updatePanels();
+      requestRender();
+    }
+
+    function undo() {
+      if (!history.length) return;
+      future.push(JSON.stringify(model));
+      restore(history.pop());
+      setStatus("بازگشت انجام شد");
+    }
+
+    function redo() {
+      if (!future.length) return;
+      history.push(JSON.stringify(model));
+      restore(future.pop());
+      setStatus("عملیات جلو انجام شد");
+    }
+
+    function setStatus(text) {
+      ui.statusMsg.textContent = text;
+    }
+
+    function setActiveTool(tool) {
+      activeTool = tool;
+      ui.toolButtons.forEach(btn => btn.classList.toggle("active", btn.dataset.tool === tool));
+      ui.activeToolName.textContent = toolName(tool);
+      ui.hint.textContent = toolHints[tool];
+      ui.toolHelp.innerHTML = buildHelp();
+      draft = null;
+      setStatus("ابزار فعال: " + toolName(tool));
+      requestRender();
+    }
+
+    function toolName(tool) {
+      const names = {
+        select: "انتخاب",
+        pan: "جابجایی",
+        point: "نقطه",
+        segment: "پاره‌خط",
+        line: "خط",
+        polygon: "چندضلعی",
+        circle: "دایره",
+        measure: "اندازه‌گیری",
+        erase: "حذف"
+      };
+      return names[tool] || tool;
+    }
+
+    function buildHelp() {
+      const lines = [
+        "با ابزار انتخاب، نقاط را درگ کنید.",
+        "برای خط، پاره‌خط و اندازه‌گیری دو کلیک لازم است.",
+        "چندضلعی را با کلیک روی نقطه اول ببندید.",
+        "شبکه و چسبیدن به شبکه از بالا قابل کنترل است.",
+        "برای پن سریع، کلید Space را نگه دارید."
+      ];
+      return lines.map(line => `<div>${line}</div>`).join("");
+    }
+
+    function createPoint(x, y) {
+      const id = `p${model.counters.point + 1}`;
+      const label = pointLabel(model.counters.point);
+      const color = nextColor(model.counters.point);
+      model.counters.point += 1;
+      model.points.push({ id, x, y, label, color, visible: true });
+      return id;
+    }
+
+    function createSegment(a, b) {
+      const id = `s${model.counters.segment + 1}`;
+      const color = nextColor(model.counters.segment + 1);
+      model.counters.segment += 1;
+      model.segments.push({ id, a, b, color, visible: true });
+    }
+
+    function createLine(a, b) {
+      const id = `l${model.counters.line + 1}`;
+      const color = nextColor(model.counters.line + 2);
+      model.counters.line += 1;
+      model.lines.push({ id, a, b, color, visible: true });
+    }
+
+    function createPolygon(points) {
+      const id = `poly${model.counters.polygon + 1}`;
+      const color = nextColor(model.counters.polygon + 3);
+      model.counters.polygon += 1;
+      model.polygons.push({ id, points, color, visible: true });
+    }
+
+    function createCircle(center, edge) {
+      const id = `c${model.counters.circle + 1}`;
+      const color = nextColor(model.counters.circle + 4);
+      model.counters.circle += 1;
+      model.circles.push({ id, center, edge, color, visible: true });
+    }
+
+    function createMeasure(a, b) {
+      const id = `m${model.counters.measure + 1}`;
+      const color = nextColor(model.counters.measure + 5);
+      model.counters.measure += 1;
+      model.measures.push({ id, a, b, color, visible: true });
+    }
+
+    function getPoint(id) {
+      return model.points.find(p => p.id === id);
+    }
+
+    function findPointAt(screenPos, radius = 10) {
+      for (const point of model.points) {
+        if (!point.visible) continue;
+        const sp = toScreen(point);
+        const dx = sp.x - screenPos.x;
+        const dy = sp.y - screenPos.y;
+        if (Math.hypot(dx, dy) <= radius) return point.id;
+      }
+      return null;
+    }
+
+    function distanceToSegment(screenPos, a, b) {
+      const ax = a.x, ay = a.y, bx = b.x, by = b.y;
+      const apx = screenPos.x - ax;
+      const apy = screenPos.y - ay;
+      const abx = bx - ax;
+      const aby = by - ay;
+      const ab2 = abx * abx + aby * aby;
+      const t = Math.max(0, Math.min(1, (apx * abx + apy * aby) / ab2));
+      const projx = ax + abx * t;
+      const projy = ay + aby * t;
+      return Math.hypot(screenPos.x - projx, screenPos.y - projy);
+    }
+
+    function findShapeAt(screenPos) {
+      const threshold = 10;
+
+      for (const segment of model.segments) {
+        if (!segment.visible) continue;
+        const a = toScreen(getPoint(segment.a));
+        const b = toScreen(getPoint(segment.b));
+        if (distanceToSegment(screenPos, a, b) <= threshold) {
+          return { type: "segment", id: segment.id };
+        }
+      }
+
+      for (const line of model.lines) {
+        if (!line.visible) continue;
+        const a = toScreen(getPoint(line.a));
+        const b = toScreen(getPoint(line.b));
+        const dist = distanceToSegment(screenPos, a, b);
+        if (dist <= threshold) {
+          return { type: "line", id: line.id };
+        }
+      }
+
+      for (const circle of model.circles) {
+        if (!circle.visible) continue;
+        const center = toScreen(getPoint(circle.center));
+        const edge = toScreen(getPoint(circle.edge));
+        const radius = Math.hypot(edge.x - center.x, edge.y - center.y);
+        const dist = Math.abs(Math.hypot(screenPos.x - center.x, screenPos.y - center.y) - radius);
+        if (dist <= threshold) return { type: "circle", id: circle.id };
+      }
+
+      for (const polygon of model.polygons) {
+        if (!polygon.visible) continue;
+        const pts = polygon.points.map(id => toScreen(getPoint(id)));
+        if (pointInPolygon(screenPos, pts)) return { type: "polygon", id: polygon.id };
+      }
+
+      for (const measure of model.measures) {
+        if (!measure.visible) continue;
+        const a = toScreen(getPoint(measure.a));
+        const b = toScreen(getPoint(measure.b));
+        if (distanceToSegment(screenPos, a, b) <= threshold) {
+          return { type: "measure", id: measure.id };
+        }
+      }
+
+      return null;
+    }
+
+    function pointInPolygon(point, polygon) {
+      let inside = false;
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+        const xi = polygon[i].x, yi = polygon[i].y;
+        const xj = polygon[j].x, yj = polygon[j].y;
+        const intersect = yi > point.y !== yj > point.y &&
+          point.x < ((xj - xi) * (point.y - yi)) / (yj - yi) + xi;
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    function snap(world) {
+      if (!view.snap) return world;
+      return {
+        x: Math.round(world.x),
+        y: Math.round(world.y)
+      };
+    }
+
+    function updatePanels() {
+      ui.pointCount.textContent = model.points.length.toString();
+      const shapeCount = model.segments.length + model.lines.length + model.polygons.length + model.circles.length + model.measures.length;
+      ui.shapeCount.textContent = shapeCount.toString();
+      ui.lastArea.textContent = lastPolygonArea === null ? "-" : formatNumber(Math.abs(lastPolygonArea));
+      renderObjectList();
+    }
+
+    function renderObjectList() {
+      const groups = [
+        { key: "points", title: "نقاط", items: model.points },
+        { key: "segments", title: "پاره‌خط‌ها", items: model.segments },
+        { key: "lines", title: "خط‌ها", items: model.lines },
+        { key: "polygons", title: "چندضلعی‌ها", items: model.polygons },
+        { key: "circles", title: "دایره‌ها", items: model.circles },
+        { key: "measures", title: "اندازه‌گیری‌ها", items: model.measures }
+      ];
+
+      ui.objectList.innerHTML = groups
+        .map(group => {
+          if (!group.items.length) return "";
+          const rows = group.items
+            .map(item => {
+              const color = item.color || "#1f8ef1";
+              const meta = objectMeta(group.key, item);
+              return `
+                <div class="object-item">
+                  <div class="object-main">
+                    <span class="object-dot" style="background:${color}"></span>
+                    <span>${objectLabel(group.key, item)}</span>
+                    <span class="object-meta">${meta}</span>
+                  </div>
+                  <div class="object-actions">
+                    <button class="icon-btn" data-action="toggle" data-type="${group.key}" data-id="${item.id}">
+                      <i class="fa-solid ${item.visible ? "fa-eye" : "fa-eye-slash"}"></i>
+                    </button>
+                    <button class="icon-btn" data-action="delete" data-type="${group.key}" data-id="${item.id}">
+                      <i class="fa-solid fa-trash"></i>
+                    </button>
+                  </div>
+                </div>
+              `;
+            })
+            .join("");
+
+          return `
+            <div class="object-group">
+              <div class="object-group-title">${group.title}</div>
+              ${rows}
+            </div>
+          `;
+        })
+        .join("");
+    }
+
+    function objectLabel(type, item) {
+      switch (type) {
+        case "points":
+          return item.label;
+        case "segments":
+          return `S-${item.id}`;
+        case "lines":
+          return `L-${item.id}`;
+        case "polygons":
+          return `P-${item.id}`;
+        case "circles":
+          return `C-${item.id}`;
+        case "measures":
+          return `M-${item.id}`;
+        default:
+          return item.id;
+      }
+    }
+
+    function objectMeta(type, item) {
+      if (type === "points") {
+        return `(${formatNumber(item.x)}, ${formatNumber(item.y)})`;
+      }
+      if (type === "segments" || type === "measures") {
+        const a = getPoint(item.a);
+        const b = getPoint(item.b);
+        if (!a || !b) return "";
+        return `طول: ${formatNumber(distance(a, b))}`;
+      }
+      if (type === "polygons") {
+        const pts = item.points.map(id => getPoint(id)).filter(Boolean);
+        return `مساحت: ${formatNumber(polygonArea(pts))}`;
+      }
+      if (type === "circles") {
+        const center = getPoint(item.center);
+        const edge = getPoint(item.edge);
+        if (!center || !edge) return "";
+        return `شعاع: ${formatNumber(distance(center, edge))}`;
+      }
+      return "";
+    }
+
+    function distance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function polygonArea(points) {
+      let sum = 0;
+      for (let i = 0; i < points.length; i++) {
+        const next = points[(i + 1) % points.length];
+        sum += points[i].x * next.y - next.x * points[i].y;
+      }
+      return Math.abs(sum / 2);
+    }
+
+    function polygonCentroid(points) {
+      let x = 0;
+      let y = 0;
+      let area = 0;
+      for (let i = 0; i < points.length; i++) {
+        const next = points[(i + 1) % points.length];
+        const cross = points[i].x * next.y - next.x * points[i].y;
+        area += cross;
+        x += (points[i].x + next.x) * cross;
+        y += (points[i].y + next.y) * cross;
+      }
+      area = area / 2;
+      if (area === 0) return points[0] || { x: 0, y: 0 };
+      return { x: x / (6 * area), y: y / (6 * area) };
+    }
+
+    function drawGrid() {
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      const topLeft = toWorld({ x: 0, y: 0 });
+      const bottomRight = toWorld({ x: width, y: height });
+
+      const minX = Math.floor(topLeft.x) - 2;
+      const maxX = Math.ceil(bottomRight.x) + 2;
+      const minY = Math.floor(bottomRight.y) - 2;
+      const maxY = Math.ceil(topLeft.y) + 2;
+
+      ctx.lineWidth = 1;
+      for (let x = minX; x <= maxX; x++) {
+        const sp = toScreen({ x, y: 0 });
+        ctx.strokeStyle = x % 5 === 0 ? "rgba(31,142,241,0.2)" : "rgba(31,142,241,0.08)";
+        ctx.beginPath();
+        ctx.moveTo(sp.x, 0);
+        ctx.lineTo(sp.x, height);
+        ctx.stroke();
+      }
+      for (let y = minY; y <= maxY; y++) {
+        const sp = toScreen({ x: 0, y });
+        ctx.strokeStyle = y % 5 === 0 ? "rgba(31,142,241,0.2)" : "rgba(31,142,241,0.08)";
+        ctx.beginPath();
+        ctx.moveTo(0, sp.y);
+        ctx.lineTo(width, sp.y);
+        ctx.stroke();
+      }
+
+      const origin = toScreen({ x: 0, y: 0 });
+      ctx.strokeStyle = "rgba(15, 23, 42, 0.4)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(origin.x, 0);
+      ctx.lineTo(origin.x, height);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, origin.y);
+      ctx.lineTo(width, origin.y);
+      ctx.stroke();
+    }
+
+    function drawPoint(point, isSelected) {
+      const sp = toScreen(point);
+      ctx.beginPath();
+      ctx.fillStyle = point.color;
+      ctx.arc(sp.x, sp.y, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+      if (isSelected) {
+        ctx.strokeStyle = "rgba(31,142,241,0.6)";
+        ctx.lineWidth = 3;
+        ctx.stroke();
+      }
+      if (view.showLabels) {
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "12px Vazirmatn";
+        ctx.fillText(point.label, sp.x + 8, sp.y - 8);
+      }
+    }
+
+    function drawSegment(segment, isSelected) {
+      const a = toScreen(getPoint(segment.a));
+      const b = toScreen(getPoint(segment.b));
+      ctx.strokeStyle = segment.color;
+      ctx.lineWidth = isSelected ? 3.5 : 2;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+
+      if (view.showLabels) {
+        const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        const dist = distance(getPoint(segment.a), getPoint(segment.b));
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "12px Vazirmatn";
+        ctx.fillText(formatNumber(dist), mid.x + 6, mid.y - 6);
+      }
+    }
+
+    function drawLine(line, isSelected) {
+      const pa = getPoint(line.a);
+      const pb = getPoint(line.b);
+      if (!pa || !pb) return;
+      const a = toScreen(pa);
+      const b = toScreen(pb);
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len;
+      const uy = dy / len;
+      const extend = 3000;
+      const p1 = { x: a.x - ux * extend, y: a.y - uy * extend };
+      const p2 = { x: a.x + ux * extend, y: a.y + uy * extend };
+      ctx.strokeStyle = line.color;
+      ctx.lineWidth = isSelected ? 3.5 : 2;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+    }
+
+    function drawPolygon(polygon, isSelected) {
+      const pts = polygon.points.map(id => getPoint(id)).filter(Boolean);
+      if (pts.length < 3) return;
+      const screenPts = pts.map(toScreen);
+      ctx.fillStyle = polygon.color + "20";
+      ctx.strokeStyle = polygon.color;
+      ctx.lineWidth = isSelected ? 3.5 : 2;
+      ctx.beginPath();
+      screenPts.forEach((p, index) => {
+        if (index === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      });
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      if (view.showLabels) {
+        const area = polygonArea(pts);
+        lastPolygonArea = area;
+        const centroid = polygonCentroid(pts);
+        const sc = toScreen(centroid);
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "12px Vazirmatn";
+        ctx.fillText("مساحت: " + formatNumber(area), sc.x + 4, sc.y - 4);
+      }
+    }
+
+    function drawCircle(circle, isSelected) {
+      const center = getPoint(circle.center);
+      const edge = getPoint(circle.edge);
+      if (!center || !edge) return;
+      const c = toScreen(center);
+      const e = toScreen(edge);
+      const radius = Math.hypot(e.x - c.x, e.y - c.y);
+      ctx.strokeStyle = circle.color;
+      ctx.lineWidth = isSelected ? 3.5 : 2;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      if (view.showLabels) {
+        ctx.fillStyle = "#0f172a";
+        ctx.font = "12px Vazirmatn";
+        ctx.fillText("r=" + formatNumber(distance(center, edge)), c.x + radius + 8, c.y - 6);
+      }
+    }
+
+    function drawMeasure(measure, isSelected) {
+      const a = toScreen(getPoint(measure.a));
+      const b = toScreen(getPoint(measure.b));
+      ctx.strokeStyle = measure.color;
+      ctx.lineWidth = isSelected ? 3.5 : 2;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+      const dist = distance(getPoint(measure.a), getPoint(measure.b));
+      ctx.fillStyle = "#0f172a";
+      ctx.font = "12px Vazirmatn";
+      ctx.fillText(formatNumber(dist), mid.x + 6, mid.y - 6);
+    }
+
+    function drawDraft() {
+      if (!draft) return;
+      ctx.strokeStyle = "rgba(31,142,241,0.8)";
+      ctx.lineWidth = 2;
+      if (draft.type === "segment" || draft.type === "line" || draft.type === "circle" || draft.type === "measure") {
+        if (!draft.points.length) return;
+        const start = getPoint(draft.points[0]);
+        if (!start) return;
+        const a = toScreen(start);
+        const b = toScreen(hoverWorld);
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+      if (draft.type === "polygon") {
+        if (!draft.points.length) return;
+        const pts = draft.points.map(id => getPoint(id)).filter(Boolean);
+        ctx.beginPath();
+        pts.forEach((p, index) => {
+          const sp = toScreen(p);
+          if (index === 0) ctx.moveTo(sp.x, sp.y);
+          else ctx.lineTo(sp.x, sp.y);
+        });
+        const end = toScreen(hoverWorld);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+      }
+    }
+
+    function render() {
+      ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+      if (view.showGrid) drawGrid();
+
+      model.lines.forEach(line => {
+        if (line.visible) drawLine(line, selection && selection.type === "line" && selection.id === line.id);
+      });
+      model.segments.forEach(segment => {
+        if (segment.visible) drawSegment(segment, selection && selection.type === "segment" && selection.id === segment.id);
+      });
+      model.circles.forEach(circle => {
+        if (circle.visible) drawCircle(circle, selection && selection.type === "circle" && selection.id === circle.id);
+      });
+      model.polygons.forEach(polygon => {
+        if (polygon.visible) drawPolygon(polygon, selection && selection.type === "polygon" && selection.id === polygon.id);
+      });
+      model.measures.forEach(measure => {
+        if (measure.visible) drawMeasure(measure, selection && selection.type === "measure" && selection.id === measure.id);
+      });
+
+      model.points.forEach(point => {
+        if (point.visible) drawPoint(point, selection && selection.type === "point" && selection.id === point.id);
+      });
+
+      drawDraft();
+      updatePanels();
+    }
+
+    let renderRequested = false;
+    function requestRender() {
+      if (renderRequested) return;
+      renderRequested = true;
+      requestAnimationFrame(() => {
+        renderRequested = false;
+        render();
+      });
+    }
+
+    function updateCoords(screenPos) {
+      const world = toWorld(screenPos);
+      ui.coords.textContent = `x: ${formatNumber(world.x)} , y: ${formatNumber(world.y)}`;
+    }
+
+    function handlePointerDown(event) {
+      const rect = canvas.getBoundingClientRect();
+      const screenPos = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      const world = snap(toWorld(screenPos));
+      hoverWorld = world;
+
+      if (event.button === 2 || spacePressed || activeTool === "pan") {
+        isPanning = true;
+        panStart = { x: event.clientX, y: event.clientY };
+        canvas.classList.add("panning");
+        return;
+      }
+
+      if (activeTool === "select") {
+        const pointId = findPointAt(screenPos);
+        const shapeHit = pointId ? null : findShapeAt(screenPos);
+        if (pointId) {
+          selection = { type: "point", id: pointId };
+          draggingPointId = pointId;
+          pushHistory();
+          requestRender();
+          return;
+        }
+        if (shapeHit) {
+          selection = shapeHit;
+          requestRender();
+          return;
+        }
+        selection = null;
+        requestRender();
+        return;
+      }
+
+      if (activeTool === "erase") {
+        const pointId = findPointAt(screenPos);
+        if (pointId) {
+          pushHistory();
+          deletePoint(pointId);
+          requestRender();
+          return;
+        }
+        const shapeHit = findShapeAt(screenPos);
+        if (shapeHit) {
+          pushHistory();
+          deleteShape(shapeHit);
+          requestRender();
+        }
+        return;
+      }
+
+      if (activeTool === "point") {
+        pushHistory();
+        createPoint(world.x, world.y);
+        requestRender();
+        return;
+      }
+
+      if (["segment", "line", "circle", "measure"].includes(activeTool)) {
+        if (!draft) draft = { type: activeTool, points: [] };
+        const existingPoint = findPointAt(screenPos);
+        const pointId = existingPoint || createPoint(world.x, world.y);
+        draft.points.push(pointId);
+
+        if (draft.points.length === 2) {
+          pushHistory();
+          if (draft.type === "segment") createSegment(draft.points[0], draft.points[1]);
+          if (draft.type === "line") createLine(draft.points[0], draft.points[1]);
+          if (draft.type === "circle") createCircle(draft.points[0], draft.points[1]);
+          if (draft.type === "measure") createMeasure(draft.points[0], draft.points[1]);
+          draft = null;
+          requestRender();
+        }
+        return;
+      }
+
+      if (activeTool === "polygon") {
+        if (!draft) draft = { type: "polygon", points: [] };
+        const existingPoint = findPointAt(screenPos);
+        const pointId = existingPoint || createPoint(world.x, world.y);
+
+        if (draft.points.length >= 3 && pointId === draft.points[0]) {
+          pushHistory();
+          createPolygon([...draft.points]);
+          draft = null;
+          requestRender();
+          return;
+        }
+
+        draft.points.push(pointId);
+        requestRender();
+      }
+    }
+
+    function handlePointerMove(event) {
+      const rect = canvas.getBoundingClientRect();
+      const screenPos = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      const world = snap(toWorld(screenPos));
+      hoverWorld = world;
+      updateCoords(screenPos);
+
+      if (isPanning) {
+        view.offsetX += event.clientX - panStart.x;
+        view.offsetY += event.clientY - panStart.y;
+        panStart = { x: event.clientX, y: event.clientY };
+        requestRender();
+        return;
+      }
+
+      if (draggingPointId) {
+        const point = getPoint(draggingPointId);
+        if (point) {
+          point.x = world.x;
+          point.y = world.y;
+          requestRender();
+        }
+      }
+    }
+
+    function handlePointerUp() {
+      draggingPointId = null;
+      if (isPanning) {
+        isPanning = false;
+        canvas.classList.remove("panning");
+      }
+    }
+
+    function deletePoint(pointId) {
+      model.points = model.points.filter(p => p.id !== pointId);
+      model.segments = model.segments.filter(s => s.a !== pointId && s.b !== pointId);
+      model.lines = model.lines.filter(l => l.a !== pointId && l.b !== pointId);
+      model.polygons = model.polygons.filter(poly => !poly.points.includes(pointId));
+      model.circles = model.circles.filter(c => c.center !== pointId && c.edge !== pointId);
+      model.measures = model.measures.filter(m => m.a !== pointId && m.b !== pointId);
+      selection = null;
+      updatePanels();
+    }
+
+    function deleteShape(target) {
+      if (!target) return;
+      switch (target.type) {
+        case "segment":
+          model.segments = model.segments.filter(s => s.id !== target.id);
+          break;
+        case "line":
+          model.lines = model.lines.filter(l => l.id !== target.id);
+          break;
+        case "polygon":
+          model.polygons = model.polygons.filter(p => p.id !== target.id);
+          break;
+        case "circle":
+          model.circles = model.circles.filter(c => c.id !== target.id);
+          break;
+        case "measure":
+          model.measures = model.measures.filter(m => m.id !== target.id);
+          break;
+        case "point":
+          deletePoint(target.id);
+          break;
+      }
+      selection = null;
+      updatePanels();
+    }
+
+    ui.toolButtons.forEach(btn => {
+      btn.addEventListener("click", () => setActiveTool(btn.dataset.tool));
+    });
+
+    ui.gridToggle.addEventListener("change", () => {
+      view.showGrid = ui.gridToggle.checked;
+      requestRender();
+    });
+
+    ui.snapToggle.addEventListener("change", () => {
+      view.snap = ui.snapToggle.checked;
+    });
+
+    ui.labelToggle.addEventListener("change", () => {
+      view.showLabels = ui.labelToggle.checked;
+      requestRender();
+    });
+
+    ui.zoomRange.addEventListener("input", () => {
+      view.unit = Number(ui.zoomRange.value);
+      requestRender();
+    });
+
+    ui.undoBtn.addEventListener("click", undo);
+    ui.redoBtn.addEventListener("click", redo);
+
+    ui.exportBtn.addEventListener("click", () => {
+      const link = document.createElement("a");
+      link.download = "quanta-geometry.png";
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    });
+
+    ui.clearBtn.addEventListener("click", () => {
+      pushHistory();
+      model.points = [];
+      model.segments = [];
+      model.lines = [];
+      model.polygons = [];
+      model.circles = [];
+      model.measures = [];
+      model.counters = { point: 0, segment: 0, line: 0, polygon: 0, circle: 0, measure: 0 };
+      selection = null;
+      draft = null;
+      lastPolygonArea = null;
+      updatePanels();
+      requestRender();
+      setStatus("همه چیز پاک شد");
+    });
+
+    canvas.addEventListener("pointerdown", handlePointerDown);
+    canvas.addEventListener("pointermove", handlePointerMove);
+    canvas.addEventListener("pointerup", handlePointerUp);
+    canvas.addEventListener("pointerleave", handlePointerUp);
+    canvas.addEventListener("contextmenu", event => event.preventDefault());
+
+    ui.objectList.addEventListener("click", event => {
+      const button = event.target.closest("button");
+      if (!button) return;
+      const action = button.dataset.action;
+      const type = button.dataset.type;
+      const id = button.dataset.id;
+      if (!action || !type || !id) return;
+
+      pushHistory();
+
+      if (action === "delete") {
+        deleteShape({ type: type.slice(0, -1), id });
+        requestRender();
+        return;
+      }
+      if (action === "toggle") {
+        const collection = model[type];
+        const item = collection.find(entry => entry.id === id);
+        if (item) {
+          item.visible = !item.visible;
+          requestRender();
+        }
+      }
+    });
+
+    window.addEventListener("keydown", event => {
+      if (event.code === "Space") {
+        spacePressed = true;
+      }
+      if (event.code === "Escape") {
+        draft = null;
+        setStatus("ترسیم لغو شد");
+        requestRender();
+      }
+      if (event.code === "Delete" || event.code === "Backspace") {
+        if (selection) {
+          pushHistory();
+          deleteShape(selection);
+          requestRender();
+          setStatus("شیء حذف شد");
+        }
+      }
+    });
+
+    window.addEventListener("keyup", event => {
+      if (event.code === "Space") {
+        spacePressed = false;
+      }
+    });
+
+    function init() {
+      setActiveTool("select");
+      ui.toolHelp.innerHTML = buildHelp();
+      requestRender();
+    }
+
+    init();
+  </script>
+</body>
+</html>
