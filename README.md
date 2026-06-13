@@ -62,24 +62,13 @@ This project is especially suitable for students who want to:
 Here is a quick overview of the main files and pages inside the project:
 
 - `index.html` — Main landing page 🏠
-- `style.css` — Main stylesheet 🎨
-- `script.js` — Core JavaScript logic ⚡
 - `A.css` / `B.css` — Additional styling files 🖌️
 - `ai.html` — AI-related section 🤖
-- `mathlab.html` — Math lab and experimentation area 🧪
-- `mathcity.html` — Interactive math city page 🏙️
-- `mathplanet.html` — Creative math planet section 🪐
-- `prime.html` — Prime numbers related page 🔢
-- `room.html` — Special study room / learning space 🪑
-- `offline.html` — Offline mode page 📴
-- `fisa.html` — Specialized section / feature page 📄
-- `ima.html` — Image or visual content page 🖼️
+
 - `خوارزمی مینی گیم.html` — Educational mini-game 🎮
 - `خوارزمی هندسه.html` — Geometry-focused mini-game 📐
 - `manifest.json` — PWA manifest 📲
-- `sw.js` — Service worker for offline/PWA support ⚙️
 - `auth.php` — Authentication related backend file 🔐
-- `ima.png` — Project preview image 🖼️
 
 ---
 
