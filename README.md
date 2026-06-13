@@ -95,11 +95,3 @@ Instead of only showing formulas and static pages, it aims to:
 - provide a structure that can grow into a bigger learning platform 📈
 
 That means this project is a strong base for a future **math learning ecosystem**.
-
----
-
-## 🖥️ Screenshots / Preview
-
-If you want to make your README even better, add screenshots here:
-```md
-![SampadMath Preview](ima.png)
